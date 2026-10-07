@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { DeleteTripModal } from "@/components/DeleteTripModal";
 import { Tooltip } from "@/components/Tooltip";
 import { ROOM_EMOJIS } from "@/lib/constants";
 import { isFirebaseConfigured } from "@/lib/firebase";
@@ -17,8 +18,13 @@ export default function Home() {
   const [emoji, setEmoji] = useState(ROOM_EMOJIS[0]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const recent = useProfile((s) => s.recentRooms);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    title: string;
+    emoji: string;
+  } | null>(null);
 
+  const recent = useProfile((s) => s.recentRooms);
   const recentIds = new Set(recent.map((r) => r.id));
 
   async function submit(e: React.FormEvent) {
@@ -91,7 +97,7 @@ export default function Home() {
 
         {roomsError && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-900">
-            ⚠️ <b>คำแนะนำ:</b> หากไม่เห็นรายการทริป โปรดตรวจสอบว่าได้อัปเดต Rules บน Firebase Console ให้เป็น <code>allow read: if signedIn();</code> แล้ว Publish หรือยัง
+            ⚠️ <b>คำแนะนำ:</b> หากไม่เห็นรายการทริป โปรดตรวจสอบว่าได้อัปเดต Rules บน Firebase Console ให้เป็น <code>allow read, delete: if signedIn();</code> แล้ว Publish หรือยัง
           </div>
         )}
 
@@ -121,16 +127,18 @@ export default function Home() {
                 : "";
 
               return (
-                <Link
+                <div
                   key={r.id}
-                  href={`/t/${r.id}`}
-                  className="card group flex items-center justify-between gap-3.5 !p-3.5 transition-all hover:border-amber-300 hover:shadow-md active:scale-99 cursor-pointer"
+                  className="card group flex items-center justify-between gap-3.5 !p-3.5 transition-all hover:border-amber-300 hover:shadow-md"
                 >
-                  <div className="flex items-center gap-3.5 min-w-0">
+                  <Link
+                    href={`/t/${r.id}`}
+                    className="flex items-center gap-3.5 min-w-0 flex-1 cursor-pointer"
+                  >
                     <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-100 border border-amber-200 text-2xl group-hover:scale-105 group-hover:bg-amber-200/60 transition-transform">
                       {r.emoji}
                     </span>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="truncate text-sm font-bold text-stone-900 group-hover:text-amber-800">
                           {r.title}
@@ -146,12 +154,32 @@ export default function Home() {
                         {dateStr && <span>· สร้างเมื่อ {dateStr}</span>}
                       </div>
                     </div>
-                  </div>
+                  </Link>
 
-                  <span className="shrink-0 rounded-xl bg-stone-50 group-hover:bg-amber-100 group-hover:text-amber-900 border border-stone-200/80 px-2.5 py-1.5 text-xs font-semibold text-stone-600 transition-colors">
-                    เข้าห้องทริป →
-                  </span>
-                </Link>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Link
+                      href={`/t/${r.id}`}
+                      className="rounded-xl bg-stone-50 group-hover:bg-amber-100 group-hover:text-amber-900 border border-stone-200/80 px-2.5 py-1.5 text-xs font-semibold text-stone-600 transition-colors"
+                    >
+                      เข้าห้อง →
+                    </Link>
+
+                    <Tooltip content="ลบห้องทริปนี้ถาวร">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDeleteTarget({ id: r.id, title: r.title, emoji: r.emoji });
+                        }}
+                        className="flex h-8 w-8 items-center justify-center rounded-xl text-stone-400 hover:bg-red-50 hover:text-red-600 hover:border-red-200 border border-transparent transition-colors cursor-pointer"
+                        aria-label={`ลบทริป ${r.title}`}
+                      >
+                        🗑️
+                      </button>
+                    </Tooltip>
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -225,6 +253,14 @@ export default function Home() {
           </Tooltip>
         </form>
       </section>
+
+      {/* Delete Trip Confirmation Modal */}
+      <DeleteTripModal
+        roomId={deleteTarget?.id ?? null}
+        roomTitle={deleteTarget?.title}
+        roomEmoji={deleteTarget?.emoji}
+        onClose={() => setDeleteTarget(null)}
+      />
     </main>
   );
 }

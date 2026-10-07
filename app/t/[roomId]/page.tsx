@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { Dashboard } from "@/components/Dashboard";
+import { DeleteTripModal } from "@/components/DeleteTripModal";
 import { MemberForm } from "@/components/MemberForm";
 import { Tooltip } from "@/components/Tooltip";
 import { useRoom } from "@/lib/useRoom";
@@ -37,10 +38,12 @@ export default function RoomPage() {
 }
 
 function RoomView() {
+  const router = useRouter();
   const { roomId } = useParams<{ roomId: string }>();
   const { uid, room, members, error } = useRoom(roomId);
   const addRecent = useProfile((s) => s.addRecent);
   const [tab, setTab] = useState<Tab | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     if (room) addRecent({ id: roomId, title: room.title, emoji: room.emoji });
@@ -129,12 +132,24 @@ function RoomView() {
           </div>
         </div>
 
-        {/* Room Code Badge */}
-        <Tooltip content="รหัสห้องทริป (ใช้แชร์ให้เพื่อน)">
-          <span className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-mono font-semibold text-amber-800">
-            #{roomId}
-          </span>
-        </Tooltip>
+        {/* Room Code Badge & Delete Button */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Tooltip content="รหัสห้องทริป (ใช้แชร์ให้เพื่อน)">
+            <span className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-mono font-semibold text-amber-800">
+              #{roomId}
+            </span>
+          </Tooltip>
+          <Tooltip content="ลบห้องทริปนี้ถาวร">
+            <button
+              type="button"
+              onClick={() => setShowDeleteModal(true)}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-stone-400 hover:bg-red-50 hover:text-red-600 border border-transparent hover:border-red-200 transition-colors cursor-pointer"
+              aria-label="ลบห้องทริปนี้"
+            >
+              🗑️
+            </button>
+          </Tooltip>
+        </div>
       </header>
 
       {/* Navigation Tab Bar */}
@@ -175,6 +190,15 @@ function RoomView() {
       )}
 
       {body}
+
+      {/* Delete Confirmation Modal */}
+      <DeleteTripModal
+        roomId={showDeleteModal ? roomId : null}
+        roomTitle={room?.title}
+        roomEmoji={room?.emoji}
+        onClose={() => setShowDeleteModal(false)}
+        onDeleted={() => router.push("/")}
+      />
     </main>
   );
 }

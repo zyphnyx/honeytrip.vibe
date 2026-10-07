@@ -2,8 +2,10 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
   setDoc,
+  writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
 import { ensureUser, getDb } from "./firebase";
@@ -80,4 +82,22 @@ export async function saveMember(roomId: string, uid: string, input: MemberInput
 
 export async function removeMember(roomId: string, uid: string): Promise<void> {
   await deleteDoc(doc(getDb(), "rooms", roomId, "members", uid));
+}
+
+export async function deleteRoom(roomId: string): Promise<void> {
+  await ensureUser();
+  const db = getDb();
+  // ลบสมาชิกทั้งหมดในห้องก่อน
+  try {
+    const membersSnap = await getDocs(collection(db, "rooms", roomId, "members"));
+    if (!membersSnap.empty) {
+      const batch = writeBatch(db);
+      membersSnap.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+  } catch (err) {
+    console.error("Failed to batch delete members:", err);
+  }
+  // ลบตัวเอกสารห้อง
+  await deleteDoc(doc(db, "rooms", roomId));
 }
