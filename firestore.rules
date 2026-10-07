@@ -11,8 +11,7 @@ service cloud.firestore {
     }
 
     match /rooms/{roomId} {
-      allow get: if signedIn();
-      allow list: if false;
+      allow read: if signedIn();
       allow create: if signedIn()
         && request.resource.data.keys().hasOnly(['title', 'emoji', 'createdAt'])
         && request.resource.data.title is string

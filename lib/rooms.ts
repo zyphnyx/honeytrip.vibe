@@ -26,6 +26,25 @@ export async function createRoom(title: string, emoji: string): Promise<string> 
   return id;
 }
 
+export interface RoomWithId extends Room {
+  id: string;
+}
+
+export function subscribeAllRooms(
+  onData: (rooms: RoomWithId[]) => void,
+  onError: (e: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    collection(getDb(), "rooms"),
+    (snap) => {
+      const list = snap.docs.map((d) => ({ ...(d.data() as Room), id: d.id }));
+      list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      onData(list);
+    },
+    onError,
+  );
+}
+
 export function subscribeRoom(
   roomId: string,
   onData: (room: Room | null) => void,
