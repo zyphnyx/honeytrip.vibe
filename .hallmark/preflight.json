@@ -1,0 +1,7 @@
+{
+  "fontStack": "Noto Sans Thai (next/font/google, app/layout.tsx)",
+  "palette": "OKLCH Honey Warm Palette (app/globals.css)",
+  "motion": "motion-cut (native CSS transitions, no framer-motion)",
+  "spacing": "Tailwind 4-pt scale",
+  "framework": "Next.js 16 (App Router)"
+}

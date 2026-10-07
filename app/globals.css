@@ -1,26 +1,230 @@
+/* Hallmark · genre: playful · theme: Honey · design-system: design.md · designed-as-app */
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Paper / Surfaces */
+  --color-paper: oklch(98.8% 0.012 85);
+  --color-paper-2: oklch(99.8% 0.005 85);
+  --color-paper-3: oklch(95.5% 0.018 85);
+  --color-paper-hover: oklch(93.8% 0.024 85);
+
+  /* Ink / Text */
+  --color-ink: oklch(22.0% 0.025 50);
+  --color-ink-2: oklch(46.0% 0.025 50);
+  --color-ink-3: oklch(62.0% 0.020 50);
+
+  /* Rules / Borders */
+  --color-rule: oklch(89.5% 0.025 80);
+  --color-rule-strong: oklch(76.0% 0.045 75);
+
+  /* Honey Amber Accent */
+  --color-accent: oklch(78.5% 0.155 75);
+  --color-accent-hover: oklch(73.0% 0.165 75);
+  --color-accent-ink: oklch(20.0% 0.030 50);
+  --color-focus: oklch(65.0% 0.170 75);
+
+  /* Semantic */
+  --color-success: oklch(62.0% 0.140 145);
+  --color-success-bg: oklch(95.5% 0.040 145);
+  --color-warn: oklch(75.0% 0.140 65);
+  --color-warn-bg: oklch(95.5% 0.040 65);
+  --color-danger: oklch(58.0% 0.190 25);
+  --color-danger-bg: oklch(95.5% 0.040 25);
+
+  /* Motion & Easing */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-short: 180ms;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background: var(--color-paper);
+  --color-foreground: var(--color-ink);
+  --font-sans: var(--font-noto-thai), ui-sans-serif, system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+html, body {
+  background-color: var(--color-paper);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  overflow-x: clip;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* Hallmark Tactile Card */
+  .card {
+    background-color: var(--color-paper-2);
+    border: 1px solid var(--color-rule);
+    border-radius: 16px;
+    padding: 1.25rem;
+    box-shadow: 0 4px 20px -6px oklch(22% 0.025 50 / 0.04), 0 1px 3px 0 oklch(22% 0.025 50 / 0.02);
+  }
+
+  /* Tactile Button Base */
+  .btn,
+  .btn-primary,
+  .btn-ghost,
+  .btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 12px;
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.25rem;
+    cursor: pointer;
+    transition: background-color var(--dur-short) var(--ease-out),
+                border-color var(--dur-short) var(--ease-out),
+                color var(--dur-short) var(--ease-out),
+                box-shadow var(--dur-short) var(--ease-out),
+                transform 100ms var(--ease-out);
+  }
+
+  .btn:active,
+  .btn-primary:active,
+  .btn-ghost:active,
+  .btn-danger:active {
+    transform: scale(0.98) translateY(1px);
+  }
+
+  .btn:focus-visible,
+  .btn-primary:focus-visible,
+  .btn-ghost:focus-visible,
+  .btn-danger:focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  .btn:disabled,
+  .btn-primary:disabled,
+  .btn-ghost:disabled,
+  .btn-danger:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .btn-primary {
+    background-color: var(--color-accent);
+    color: var(--color-accent-ink);
+    border: 1px solid oklch(72% 0.16 75);
+    box-shadow: 0 2px 8px -2px oklch(78.5% 0.155 75 / 0.35);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--color-accent-hover);
+    box-shadow: 0 4px 14px -2px oklch(78.5% 0.155 75 / 0.45);
+  }
+
+  .btn-ghost {
+    background-color: var(--color-paper-2);
+    color: var(--color-ink);
+    border: 1px solid var(--color-rule);
+    box-shadow: 0 1px 2px 0 oklch(22% 0.025 50 / 0.03);
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    background-color: var(--color-paper-hover);
+    border-color: var(--color-rule-strong);
+  }
+
+  .btn-danger {
+    background-color: var(--color-paper-2);
+    color: var(--color-danger);
+    border: 1px solid oklch(88% 0.04 25);
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    background-color: var(--color-danger-bg);
+  }
+
+  /* Form Elements */
+  .input {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid var(--color-rule);
+    background-color: var(--color-paper-2);
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    color: var(--color-ink);
+    outline: none;
+    transition: border-color var(--dur-short) var(--ease-out),
+                box-shadow var(--dur-short) var(--ease-out);
+  }
+
+  .input:focus {
+    border-color: var(--color-focus);
+    box-shadow: 0 0 0 3px oklch(78.5% 0.155 75 / 0.2);
+  }
+
+  .input::placeholder {
+    color: var(--color-ink-3);
+  }
+
+  .label {
+    display: block;
+    margin-bottom: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-ink);
+  }
+
+  /* Chip / Pill Selector */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border-radius: var(--radius-chip);
+    border: 1px solid var(--color-rule);
+    background-color: var(--color-paper-2);
+    padding: 0.375rem 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-ink-2);
+    cursor: pointer;
+    transition: border-color var(--dur-short) var(--ease-out),
+                background-color var(--dur-short) var(--ease-out),
+                color var(--dur-short) var(--ease-out),
+                transform 100ms var(--ease-out);
+  }
+
+  .chip:hover {
+    border-color: var(--color-rule-strong);
+    background-color: var(--color-paper-3);
+    color: var(--color-ink);
+  }
+
+  .chip:active {
+    transform: scale(0.96);
+  }
+
+  .chip:focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  .chip-on {
+    border-color: var(--color-rule-strong);
+    background-color: oklch(93% 0.08 75);
+    color: var(--color-ink);
+    font-weight: 600;
+    box-shadow: 0 1px 3px oklch(78% 0.15 75 / 0.2);
+  }
 }
