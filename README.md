@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🍯 HoneyTrip
 
-## Getting Started
+เว็บนัดทริปกับเพื่อน — ไม่ต้อง login · real-time · ฟรี 100% (Vercel + Firebase Spark)
 
-First, run the development server:
+ดีไซน์ฉบับเต็ม: ดูเอกสารออกแบบ (stack, data model, roadmap)
 
+## ฟีเจอร์ (Phase 0–1 / MVP)
+- สร้างห้องทริป → แชร์ลิงก์ (รหัสห้องสุ่ม 10 ตัว) เข้า LINE
+- กรอกชื่อ, สถานะ (ไปแน่/ลังเล/ไม่ไป), จำนวนวัน (ช่วง), งบ, **วันที่ว่าง**, ต้นทาง/รถ, สไตล์
+- Dashboard real-time: ใครไปบ้าง, heatmap วันว่าง + **ช่วงวันที่ลงตัวที่สุด**, งบที่ลงตัว, จำนวนวัน, สไตล์/รถ
+- ปุ่มคัดลอกสรุปส่ง LINE
+
+## ตั้งค่า Firebase (ฟรี ไม่ต้องใส่บัตร)
+1. [Firebase Console](https://console.firebase.google.com) → Add project (ปิด Analytics ได้)
+2. **Build → Firestore Database** → Create database (production mode, region `asia-southeast1`)
+3. **Build → Authentication → Sign-in method** → เปิด **Anonymous**
+4. **Firestore → Rules** → วางเนื้อหาจาก [`firestore.rules`](./firestore.rules) แล้ว Publish
+5. **Project settings → Your apps → Web (`</>`)** → copy config
+6. `copy .env.example .env.local` แล้วใส่ค่า 4 ตัว
+
+## รัน
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev   # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Deploy บน Vercel
+1. push ขึ้น GitHub → Import project ใน Vercel
+2. ใส่ Environment Variables 4 ตัวเดียวกับ `.env.local`
+3. Authentication → Settings → **Authorized domains** → เพิ่มโดเมน `*.vercel.app` ของโปรเจกต์
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## ข้อจำกัดที่รู้
+- ไม่มี login: เคลียร์ browser / เปลี่ยนเครื่อง = uid ใหม่ (จะเข้าห้องเดิมได้แต่ต้องกรอกข้อมูลใหม่) — ระบบ "claim ตัวตนเดิม" อยู่ใน roadmap
+- อย่าเก็บข้อมูลอ่อนไหว (เบอร์/บัญชีธนาคาร) — ใครมีลิงก์ก็เข้าห้องได้
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Roadmap
+- Phase 2: แนะนำสถานที่ + โหวต + fit score + link preview
+- Phase 3: Lock plan, claim ตัวตน
+- Phase 4: หารเงิน, itinerary, checklist, PWA
