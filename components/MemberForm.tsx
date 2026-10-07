@@ -103,7 +103,7 @@ export function MemberForm({ roomId, uid, initial, onSaved }: Props) {
             maxLength={30}
             required
             onChange={(e) => setName(e.target.value)}
-            placeholder="เช่น นอ, แจน, บอย"
+            placeholder=""
           />
         </div>
 

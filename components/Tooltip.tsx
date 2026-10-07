@@ -13,6 +13,7 @@ interface TooltipProps {
 
 /**
  * Hallmark-compliant Tooltip / Hover Hint:
+ * - Smart bounds: automatically flips to bottom if near top of viewport
  * - Accessible: role="tooltip", aria-describedby linkage
  * - Microinteraction: 150ms ease-out opacity, 150ms delay on hover, 0ms on keyboard focus
  * - Mobile friendly: tap toggles visibility, click outside dismisses
@@ -26,12 +27,24 @@ export function Tooltip({
   className = "",
 }: TooltipProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [actualPos, setActualPos] = useState<"top" | "bottom" | "left" | "right">(position);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const tooltipId = useId();
 
   const show = (immediate = false) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+    // Check bounds before showing
+    if (wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      if (position === "top" && rect.top < 90) {
+        setActualPos("bottom");
+      } else {
+        setActualPos(position);
+      }
+    }
+
     if (immediate) {
       setIsOpen(true);
     } else {
@@ -80,7 +93,7 @@ export function Tooltip({
       onMouseEnter={() => show(false)}
       onMouseLeave={hide}
       onClick={(e) => {
-        // Allow mobile tap-to-inspect
+        // Allow mobile tap-to-inspect if not triggered by inner interactive click
         if (typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0)) {
           if (!isOpen) {
             e.stopPropagation();
@@ -105,7 +118,7 @@ export function Tooltip({
         <div
           id={tooltipId}
           role="tooltip"
-          className={`pointer-events-none absolute z-50 whitespace-normal rounded-xl border border-amber-200/80 bg-stone-900 px-2.5 py-1.5 text-xs font-normal text-amber-50 shadow-lg backdrop-blur-sm transition-opacity duration-150 max-w-[260px] text-center ${posClasses[position]}`}
+          className={`pointer-events-none absolute z-50 whitespace-normal rounded-xl border border-amber-200/80 bg-stone-900 px-2.5 py-1.5 text-xs font-normal text-amber-50 shadow-xl backdrop-blur-sm transition-opacity duration-150 max-w-[260px] text-center ${posClasses[actualPos]}`}
           style={{
             animation: "fadeIn 150ms cubic-bezier(0.16, 1, 0.3, 1) forwards",
           }}
@@ -114,11 +127,11 @@ export function Tooltip({
           {/* Subtle pointer tip */}
           <div
             className={`absolute h-1.5 w-1.5 rotate-45 border-stone-900 bg-stone-900 ${
-              position === "top"
+              actualPos === "top"
                 ? "-bottom-0.5 left-1/2 -translate-x-1/2"
-                : position === "bottom"
+                : actualPos === "bottom"
                 ? "-top-0.5 left-1/2 -translate-x-1/2"
-                : position === "left"
+                : actualPos === "left"
                 ? "-right-0.5 top-1/2 -translate-y-1/2"
                 : "-left-0.5 top-1/2 -translate-y-1/2"
             }`}

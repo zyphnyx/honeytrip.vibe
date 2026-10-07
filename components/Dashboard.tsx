@@ -6,82 +6,39 @@ import { addDays, formatRange } from "@/lib/dates";
 import { baht, buildSummary, computeStats } from "@/lib/stats";
 import type { Member, Room } from "@/lib/types";
 import { Calendar } from "./Calendar";
+import { MemberDetailModal } from "./MemberDetailModal";
 import { Tooltip } from "./Tooltip";
 
-function MemberAvatar({ m, isCurrent }: { m: Member; isCurrent: boolean }) {
-  const prefLabels = m.prefs
-    .map((p) => PREFS.find((item) => item.id === p)?.label.split(" ")[1])
-    .filter(Boolean)
-    .join(", ");
-
-  const tooltipInfo = (
-    <div className="text-left space-y-1.5 p-0.5">
-      <div className="flex items-center gap-1.5 border-b border-stone-800 pb-1">
-        <span className="text-lg">{m.emoji}</span>
-        <div>
-          <div className="font-bold text-amber-200">
-            {m.name} {isCurrent && "(คุณ)"}
-          </div>
-          <div className="text-[11px] text-stone-400">
-            {m.status === "going"
-              ? "✅ ไปแน่นอน"
-              : m.status === "maybe"
-              ? "🤔 ยังไม่แน่ใจ"
-              : "❌ ไปไม่ได้"}
-          </div>
-        </div>
-      </div>
-
-      <div className="text-[11px] text-stone-300 space-y-0.5">
-        <div>
-          ⏱ สะดวก: <span className="text-white font-medium">{m.durationMin}–{m.durationMax} วัน</span>
-        </div>
-        {m.budgetMax > 0 && (
-          <div>
-            💰 งบ: <span className="text-white font-medium">{baht(m.budgetMin)}–{baht(m.budgetMax)}</span>
-          </div>
-        )}
-        {m.origin && (
-          <div>
-            📍 ต้นทาง: <span className="text-white font-medium">{m.origin}</span>
-          </div>
-        )}
-        <div>
-          🚗 เดินทาง:{" "}
-          <span className="text-white font-medium">
-            {m.transport === "own_car"
-              ? `มีรถ (รับได้ ${m.seats} ที่)`
-              : m.transport === "need_ride"
-              ? "ขอติดรถไปด้วย"
-              : "แบบไหนก็ได้"}
-          </span>
-        </div>
-        {prefLabels && (
-          <div>
-            🎯 สไตล์: <span className="text-amber-100">{prefLabels}</span>
-          </div>
-        )}
-        {m.note && (
-          <div className="mt-1 border-t border-stone-800 pt-1 text-stone-300 italic">
-            &ldquo;{m.note}&rdquo;
-          </div>
-        )}
-      </div>
+function MemberAvatar({
+  m,
+  isCurrent,
+  onInspect,
+}: {
+  m: Member;
+  isCurrent: boolean;
+  onInspect: (m: Member) => void;
+}) {
+  const shortHint = (
+    <div className="text-center">
+      <div className="font-bold text-amber-200">{m.name} {isCurrent && "(คุณ)"}</div>
+      <div className="text-[10px] text-stone-300">คลิกเพื่อดูข้อมูลทริปฉบับเต็ม</div>
     </div>
   );
 
   return (
-    <Tooltip content={tooltipInfo} delayMs={100}>
+    <Tooltip content={shortHint} delayMs={100}>
       <button
         type="button"
+        onClick={() => onInspect(m)}
+        aria-label={`ดูรายละเอียดของ ${m.name}`}
         className={`group relative flex w-14 flex-col items-center gap-1 rounded-2xl p-1 transition-transform duration-100 hover:scale-105 active:scale-95 focus-visible:outline-2 focus-visible:outline-amber-400 cursor-pointer ${
           m.status === "out" ? "opacity-50 grayscale" : ""
         }`}
       >
-        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-2xl shadow-xs border border-amber-200/60 group-hover:border-amber-400 transition-colors">
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-2xl shadow-xs border border-amber-200/60 group-hover:border-amber-400 group-hover:bg-amber-200/50 transition-colors">
           {m.emoji}
         </span>
-        <span className="w-full truncate text-center text-xs font-medium text-stone-800 group-hover:text-amber-800">
+        <span className="w-full truncate text-center text-xs font-semibold text-stone-800 group-hover:text-amber-800">
           {m.name}
         </span>
         {isCurrent && (
@@ -127,6 +84,7 @@ export function Dashboard({
 }) {
   const stats = useMemo(() => computeStats(members), [members]);
   const [copied, setCopied] = useState<"link" | "summary" | null>(null);
+  const [inspectMember, setInspectMember] = useState<Member | null>(null);
 
   const url = typeof window === "undefined" ? "" : `${window.location.origin}/t/${roomId}`;
   const summary = buildSummary(room, stats, url);
@@ -206,15 +164,20 @@ export function Dashboard({
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {list.map((m) => (
-                        <MemberAvatar key={m.id} m={m} isCurrent={m.id === uid} />
+                        <MemberAvatar
+                          key={m.id}
+                          m={m}
+                          isCurrent={m.id === uid}
+                          onInspect={setInspectMember}
+                        />
                       ))}
                     </div>
                   </div>
                 );
               })}
             </div>
-            <p className="text-[11px] text-stone-400 pt-1">
-              💡 แตะหรือเอาเมาส์ชี้ที่โปรไฟล์เพื่อน เพื่อดูงบ วันที่สะดวก และสไตล์
+            <p className="text-[11px] text-stone-500 pt-1 flex items-center gap-1">
+              <span>💡</span> แตะหรือคลิกที่โปรไฟล์เพื่อน เพื่อเปิดดูข้อมูลฉบับเต็ม (งบ, ที่อยู่, พาหนะ, หมายเหตุ)
             </p>
           </Section>
 
@@ -438,7 +401,11 @@ export function Dashboard({
           <Section title="⚡ ความเคลื่อนไหวล่าสุด">
             <ul className="divide-y divide-stone-100 text-xs text-stone-600">
               {recent.map((m) => (
-                <li key={m.id} className="py-2 flex items-center justify-between">
+                <li
+                  key={m.id}
+                  onClick={() => setInspectMember(m)}
+                  className="py-2 flex items-center justify-between hover:bg-stone-50 px-1 rounded-lg cursor-pointer transition-colors"
+                >
                   <div className="flex items-center gap-1.5">
                     <span className="text-base">{m.emoji}</span>
                     <span className="font-semibold text-stone-900">{m.name}</span>
@@ -469,6 +436,13 @@ export function Dashboard({
           </Tooltip>
         </>
       )}
+
+      {/* Member Details Modal */}
+      <MemberDetailModal
+        member={inspectMember}
+        isCurrent={inspectMember?.id === uid}
+        onClose={() => setInspectMember(null)}
+      />
     </div>
   );
 }
