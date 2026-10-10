@@ -42,7 +42,7 @@ export default function Home() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-xl flex-1 px-4 py-8 sm:py-12 space-y-8">
+    <main className="mx-auto w-full max-w-xl flex-1 px-3.5 sm:px-4 py-6 sm:py-12 pb-24 sm:pb-16 space-y-6 sm:space-y-8">
       {/* Brand & Value Header */}
       <div className="text-center space-y-2">
         <div className="inline-flex h-16 w-16 items-center justify-center rounded-3xl bg-amber-100 border border-amber-200 shadow-sm text-4xl">
@@ -81,7 +81,7 @@ export default function Home() {
 
       {/* ALL TRIPS LIST SECTION */}
       <section className="space-y-3">
-        <div className="flex items-center justify-between px-1">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-bold text-stone-900">
               🏖️ ทริปทั้งหมดในกลุ่ม
@@ -92,7 +92,9 @@ export default function Home() {
               </span>
             )}
           </div>
-          <span className="text-[11px] text-stone-400">อัปเดตสดอัตโนมัติ</span>
+          <span className="text-[11px] font-medium text-stone-500">
+            อัปเดตสดอัตโนมัติ
+          </span>
         </div>
 
         {roomsError && (
@@ -110,7 +112,7 @@ export default function Home() {
           <div className="card py-8 text-center text-stone-500 space-y-2">
             <p className="text-2xl">🌴</p>
             <p className="text-sm font-semibold text-stone-800">ยังไม่มีทริปที่ถูกสร้าง</p>
-            <p className="text-xs text-stone-400">
+            <p className="text-xs text-stone-500">
               เป็นผู้นำทริปคนแรก สร้างห้องด้านล่างแล้วชวนเพื่อนมาโหวตได้เลย!
             </p>
           </div>
@@ -129,39 +131,48 @@ export default function Home() {
               return (
                 <div
                   key={r.id}
-                  className="card group flex items-center justify-between gap-3.5 !p-3.5 transition-all hover:border-amber-300 hover:shadow-md"
+                  className="card group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-3.5 !p-3.5 sm:!p-4 transition-all hover:border-amber-300 hover:shadow-md"
                 >
+                  {/* Top Level on Mobile (<sm), Left Column on Desktop (sm:) */}
                   <Link
                     href={`/t/${r.id}`}
-                    className="flex items-center gap-3.5 min-w-0 flex-1 cursor-pointer"
+                    className="flex items-start sm:items-center gap-3 sm:gap-3.5 min-w-0 flex-1 cursor-pointer"
                   >
-                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-100 border border-amber-200 text-2xl group-hover:scale-105 group-hover:bg-amber-200/60 transition-transform">
+                    <span className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-100 border border-amber-200 text-2xl group-hover:scale-105 group-hover:bg-amber-200/60 transition-transform mt-0.5 sm:mt-0">
                       {r.emoji}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="truncate text-sm font-bold text-stone-900 group-hover:text-amber-800">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                        <h3 className="line-clamp-2 sm:line-clamp-1 text-sm font-bold text-stone-900 group-hover:text-amber-800 break-words leading-snug">
                           {r.title}
                         </h3>
                         {isRecent && (
-                          <span className="shrink-0 rounded-full bg-emerald-100 px-1.5 py-0.2 text-[9px] font-bold text-emerald-800">
+                          <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200/60">
                             เข้าล่าสุด
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 text-[11px] text-stone-400 mt-0.5">
-                        <span className="font-mono text-stone-500">#{r.id}</span>
-                        {dateStr && <span>· สร้างเมื่อ {dateStr}</span>}
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-stone-500 mt-1 sm:mt-0.5">
+                        <span className="font-mono font-semibold text-stone-600 bg-stone-100 px-1.5 py-0.5 rounded text-[11px]">
+                          #{r.id}
+                        </span>
+                        {dateStr && (
+                          <span className="text-[11px] text-stone-500">
+                            สร้างเมื่อ {dateStr}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </Link>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Bottom Level on Mobile (<sm), Right Column on Desktop (sm:) */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-stone-100 sm:border-t-0 sm:pt-0 sm:shrink-0">
                     <Link
                       href={`/t/${r.id}`}
-                      className="rounded-xl bg-stone-50 group-hover:bg-amber-100 group-hover:text-amber-900 border border-stone-200/80 px-2.5 py-1.5 text-xs font-semibold text-stone-600 transition-colors"
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-white sm:bg-stone-50 sm:text-stone-700 sm:hover:bg-amber-100 sm:hover:text-amber-900 sm:border sm:border-stone-200/80 px-3.5 py-2.5 sm:py-2 text-xs font-bold transition-all shadow-xs min-h-[44px] sm:min-h-[36px]"
                     >
-                      เข้าห้อง →
+                      <span>เข้าห้องทริป</span>
+                      <span className="text-xs">→</span>
                     </Link>
 
                     <Tooltip content="ลบห้องทริปนี้ถาวร">
@@ -172,7 +183,7 @@ export default function Home() {
                           e.stopPropagation();
                           setDeleteTarget({ id: r.id, title: r.title, emoji: r.emoji });
                         }}
-                        className="flex h-8 w-8 items-center justify-center rounded-xl text-stone-400 hover:bg-red-50 hover:text-red-600 hover:border-red-200 border border-transparent transition-colors cursor-pointer"
+                        className="flex h-11 w-11 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl text-stone-400 hover:bg-red-50 hover:text-red-600 hover:border-red-200 border border-stone-200/60 sm:border-transparent transition-all cursor-pointer active:scale-95"
                         aria-label={`ลบทริป ${r.title}`}
                       >
                         🗑️
@@ -191,7 +202,7 @@ export default function Home() {
         <form onSubmit={submit} className="card space-y-4 border-amber-200/90 shadow-sm">
           <div className="border-b border-stone-100 pb-2">
             <h2 className="text-base font-bold text-stone-900">➕ สร้างห้องทริปใหม่</h2>
-            <p className="text-xs text-stone-400 mt-0.5">
+            <p className="text-xs text-stone-500 mt-0.5 leading-relaxed">
               ตั้งชื่อทริปใหม่แล้วระบบจะพาไปยังหน้าแดชบอร์ดเพื่อให้เพื่อนๆ เข้ามาร่วมลงชื่อ
             </p>
           </div>
