@@ -1,0 +1,565 @@
+/* Tiny Travel World + Honey Bee Animated Background
+ * Extracted from design-reference/honeytrip-animated-background-demo.html
+ */
+
+/* Root scene container: fixed viewport layer behind UI */
+.h-scene {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 8% 17%, #dff2ff 0%, transparent 28%),
+    radial-gradient(ellipse at 90% 26%, #fdf0d8 0%, transparent 33%),
+    linear-gradient(180deg, #fffaf0 0%, #fdf7ea 69%, #fff1d3 100%);
+  --mx: 0px;
+  --my: 0px;
+}
+
+/* Ambient glows */
+.h-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.36;
+}
+.h-glow.one {
+  width: 450px;
+  height: 450px;
+  top: -210px;
+  left: -180px;
+  background: #a8d7f7;
+}
+.h-glow.two {
+  width: 490px;
+  height: 400px;
+  right: -230px;
+  top: 24%;
+  background: #ffe2ac;
+}
+
+/* Soft breathing sun */
+.h-sun {
+  position: absolute;
+  top: 9%;
+  right: 12%;
+  width: 115px;
+  height: 115px;
+  border-radius: 50%;
+  background: #ffe3a3;
+  box-shadow: 0 0 0 32px #fff2cf80, 0 0 110px 50px #ffe6b055;
+  opacity: 0.85;
+  animation: h-breathe 9s ease-in-out infinite;
+}
+
+/* Clouds drifting */
+.h-cloud {
+  position: absolute;
+  z-index: 2;
+  filter: drop-shadow(0 9px 15px rgba(130, 180, 190, 0.12));
+  opacity: 0.76;
+}
+.h-cloud svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.h-cloud.c1 {
+  top: 9%;
+  left: 3%;
+  width: 225px;
+  animation: h-drift1 33s ease-in-out infinite alternate;
+}
+.h-cloud.c2 {
+  top: 24%;
+  right: 2%;
+  width: 175px;
+  animation: h-drift2 44s ease-in-out infinite alternate;
+}
+.h-cloud.c3 {
+  top: 57%;
+  left: -3%;
+  width: 150px;
+  opacity: 0.47;
+  animation: h-drift1 39s ease-in-out infinite alternate-reverse;
+}
+.h-cloud.c4 {
+  top: 5%;
+  right: 33%;
+  width: 104px;
+  opacity: 0.4;
+  animation: h-drift2 46s ease-in-out infinite alternate;
+}
+
+/* Honey bees */
+.h-bee {
+  position: absolute;
+  z-index: 4;
+  filter: drop-shadow(0 5px 8px rgba(132, 88, 16, 0.13));
+  will-change: transform;
+}
+.h-bee svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.h-bee.b1 {
+  top: 24%;
+  left: 7%;
+  width: 59px;
+  animation: h-bee1 14s ease-in-out infinite;
+}
+.h-bee.b2 {
+  top: 59%;
+  right: 7%;
+  width: 46px;
+  animation: h-bee2 18s ease-in-out infinite -4s;
+}
+.h-bee.b3 {
+  bottom: 19%;
+  left: 18%;
+  width: 39px;
+  opacity: 0.85;
+  animation: h-bee3 17s ease-in-out infinite -8s;
+}
+.h-bee .wing {
+  transform-origin: 50% 52%;
+  animation: h-wings 0.24s ease-in-out infinite alternate;
+}
+.h-bee .wing.right {
+  animation-direction: alternate-reverse;
+}
+
+/* Paper airplane flying across */
+.h-plane {
+  position: absolute;
+  top: 34%;
+  left: 0;
+  z-index: 3;
+  width: 75px;
+  transform-origin: center;
+  filter: drop-shadow(0 4px 4px #d1a76b55);
+  animation: h-plane 29s linear infinite;
+}
+.h-plane svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Dotted route path */
+.h-route {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.5;
+}
+.h-route path {
+  fill: none;
+  stroke: #e4ab54;
+  stroke-width: 2;
+  stroke-dasharray: 3 10;
+  stroke-linecap: round;
+  animation: h-dash 22s linear infinite;
+}
+
+/* Rolling hills */
+.h-hill {
+  position: absolute;
+  z-index: 1;
+  bottom: -4%;
+  height: 31%;
+  width: 45%;
+  background: linear-gradient(165deg, #d4e9cd, #a6cfb1);
+  opacity: 0.8;
+}
+.h-hill.left {
+  left: -13%;
+  border-radius: 65% 100% 0 0;
+  transform: rotate(-8deg);
+}
+.h-hill.right {
+  right: -15%;
+  height: 38%;
+  background: linear-gradient(160deg, #bbdecf, #84baab);
+  border-radius: 100% 60% 0 0;
+  transform: rotate(8deg);
+}
+.h-hill.back {
+  z-index: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 17%;
+  bottom: -6%;
+  background: linear-gradient(0deg, #d4e2bd, #eff2d3);
+  border-radius: 52% 45% 0 0;
+  opacity: 0.85;
+  transform: none;
+}
+
+/* Distant mountains */
+.h-mountain {
+  position: absolute;
+  bottom: 15%;
+  width: 210px;
+  opacity: 0.46;
+  z-index: 0;
+}
+.h-mountain svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.h-mountain.l {
+  left: 1%;
+}
+.h-mountain.r {
+  right: 0;
+  transform: scaleX(-1);
+}
+
+/* Swaying flower garden */
+.h-garden {
+  position: absolute;
+  z-index: 3;
+  bottom: -6px;
+  width: 205px;
+  height: 204px;
+  transform-origin: 50% 100%;
+  animation: h-garden 8s ease-in-out infinite alternate;
+}
+.h-garden svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.h-garden.left {
+  left: 0;
+}
+.h-garden.right {
+  right: 0;
+  transform: scaleX(-1);
+  animation: h-garden-right 9s ease-in-out infinite alternate;
+}
+
+/* Decorative sparkles */
+.h-spark {
+  position: absolute;
+  font-size: 20px;
+  color: #e7b34d;
+  animation: h-sparkle 5.5s ease-in-out infinite;
+  user-select: none;
+  pointer-events: none;
+}
+.h-spark.s1 {
+  left: 21%;
+  top: 14%;
+}
+.h-spark.s2 {
+  right: 19%;
+  top: 47%;
+  animation-delay: -1.8s;
+}
+.h-spark.s3 {
+  left: 8%;
+  top: 67%;
+  font-size: 14px;
+  animation-delay: -3s;
+}
+
+/* Mouse-driven Parallax */
+.h-onlymotion {
+  transition: translate 0.28s ease-out, transform 0.28s ease-out;
+}
+.h-scene .h-hill {
+  translate: calc(var(--mx) * 0.45) calc(var(--my) * 0.45);
+}
+.h-scene .h-mountain {
+  translate: calc(var(--mx) * 0.2) calc(var(--my) * 0.2);
+}
+.h-scene .h-sun {
+  translate: calc(var(--mx) * 0.14) calc(var(--my) * 0.14);
+}
+
+/* Motion Toggle Button */
+.h-motion-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid #e3ceaa;
+  background: rgba(255, 253, 247, 0.94);
+  box-shadow: 0 4px 14px rgba(133, 94, 32, 0.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 0.45rem 0.85rem;
+  border-radius: 9999px;
+  font-size: 0.775rem;
+  font-weight: 700;
+  color: #60482b;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+  line-height: 1;
+}
+.h-motion-toggle:hover {
+  background: #fff8eb;
+  border-color: #dfbe88;
+  transform: translateY(-1px);
+}
+.h-motion-toggle:active {
+  transform: translateY(0) scale(0.97);
+}
+.h-motion-toggle:focus-visible {
+  outline: 2px solid #d59532;
+  outline-offset: 2px;
+}
+.h-motion-toggle[aria-pressed="true"] {
+  background: #f7ae36;
+  border-color: #eba126;
+  color: #372718;
+  box-shadow: 0 4px 14px rgba(247, 174, 54, 0.28);
+}
+.h-motion-toggle[aria-pressed="true"]:hover {
+  background: #f8b84d;
+}
+
+.h-motion-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+.h-motion-indicator {
+  font-size: 0.85rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+.h-motion-off {
+  display: none;
+}
+.h-motion-on {
+  display: inline;
+}
+
+/* Instant visual sync with html.h-paused */
+html.h-paused .h-motion-on,
+body.h-paused .h-motion-on {
+  display: none !important;
+}
+html.h-paused .h-motion-off,
+body.h-paused .h-motion-off {
+  display: inline !important;
+}
+html.h-paused .h-motion-toggle,
+body.h-paused .h-motion-toggle {
+  background: rgba(255, 253, 247, 0.94) !important;
+  border-color: #e3ceaa !important;
+  color: #60482b !important;
+  box-shadow: 0 4px 14px rgba(133, 94, 32, 0.12) !important;
+}
+
+/* Keyframe Animations */
+@keyframes h-drift1 {
+  0% {
+    transform: translate3d(-10px, 0, 0);
+  }
+  100% {
+    transform: translate3d(75px, 12px, 0);
+  }
+}
+
+@keyframes h-drift2 {
+  0% {
+    transform: translate3d(18px, 8px, 0);
+  }
+  100% {
+    transform: translate3d(-70px, -12px, 0);
+  }
+}
+
+@keyframes h-bee1 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(-8deg);
+  }
+  20% {
+    transform: translate3d(35px, -32px, 0) rotate(8deg);
+  }
+  42% {
+    transform: translate3d(85px, 16px, 0) rotate(-5deg);
+  }
+  70% {
+    transform: translate3d(50px, 48px, 0) rotate(13deg);
+  }
+}
+
+@keyframes h-bee2 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(7deg);
+  }
+  25% {
+    transform: translate3d(-60px, 23px, 0) rotate(-11deg);
+  }
+  53% {
+    transform: translate3d(-95px, -32px, 0) rotate(12deg);
+  }
+  78% {
+    transform: translate3d(-25px, -50px, 0) rotate(-9deg);
+  }
+}
+
+@keyframes h-bee3 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  33% {
+    transform: translate3d(42px, -38px, 0) rotate(18deg);
+  }
+  66% {
+    transform: translate3d(-25px, -16px, 0) rotate(-10deg);
+  }
+}
+
+@keyframes h-wings {
+  0% {
+    transform: scaleY(0.74) rotate(-10deg);
+  }
+  100% {
+    transform: scaleY(1.16) rotate(9deg);
+  }
+}
+
+@keyframes h-plane {
+  0% {
+    transform: translate3d(-12vw, 12vh, 0) rotate(-6deg);
+    opacity: 0;
+  }
+  6% {
+    opacity: 0.85;
+  }
+  26% {
+    transform: translate3d(24vw, -8vh, 0) rotate(-22deg);
+  }
+  51% {
+    transform: translate3d(58vw, -1vh, 0) rotate(6deg);
+  }
+  78% {
+    transform: translate3d(89vw, -12vh, 0) rotate(-8deg);
+    opacity: 0.9;
+  }
+  88%, 100% {
+    transform: translate3d(112vw, -18vh, 0) rotate(-12deg);
+    opacity: 0;
+  }
+}
+
+@keyframes h-dash {
+  to {
+    stroke-dashoffset: -250;
+  }
+}
+
+@keyframes h-garden {
+  to {
+    transform: rotate(2deg);
+  }
+}
+
+@keyframes h-garden-right {
+  to {
+    transform: scaleX(-1) rotate(2deg);
+  }
+}
+
+@keyframes h-breathe {
+  50% {
+    opacity: 0.58;
+    scale: 1.045;
+  }
+}
+
+@keyframes h-sparkle {
+  0%, 100% {
+    opacity: 0.2;
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 0.86;
+    transform: scale(1.2);
+  }
+}
+
+/* Paused State */
+html.h-paused .h-scene *,
+html.h-paused .h-scene *::before,
+body.h-paused .h-scene *,
+body.h-paused .h-scene *::before,
+.h-scene.h-paused *,
+.h-scene.h-paused *::before {
+  animation-play-state: paused !important;
+}
+
+html.h-paused .h-plane,
+body.h-paused .h-plane,
+.h-scene.h-paused .h-plane {
+  opacity: 0 !important;
+}
+
+html.h-paused .h-scene,
+body.h-paused .h-scene,
+.h-scene.h-paused {
+  --mx: 0px !important;
+  --my: 0px !important;
+}
+
+/* User reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .h-scene *,
+  .h-scene *::before {
+    animation: none !important;
+    transition: none !important;
+  }
+  .h-plane {
+    display: none !important;
+  }
+  .h-scene {
+    --mx: 0px !important;
+    --my: 0px !important;
+  }
+}
+
+/* Mobile & Tablet (< 1024px)
+ * Disable complex moving elements, preserve lightweight static cream/pastel background.
+ */
+@media (max-width: 1023px) {
+  .h-cloud,
+  .h-bee,
+  .h-plane,
+  .h-route,
+  .h-garden,
+  .h-mountain,
+  .h-spark {
+    display: none !important;
+    animation: none !important;
+  }
+  .h-hill {
+    opacity: 0.33;
+    animation: none !important;
+  }
+  .h-sun {
+    right: -35px;
+    top: 5%;
+    scale: 0.65;
+    opacity: 0.4;
+    animation: none !important;
+  }
+  .h-motion-toggle {
+    padding: 0.35rem 0.7rem;
+    font-size: 0.725rem;
+  }
+}
