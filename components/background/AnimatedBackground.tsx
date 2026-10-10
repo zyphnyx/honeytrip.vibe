@@ -62,8 +62,7 @@ function subscribeToMotion(callback: () => void): () => void {
  * - Rolling hills and distant mountains
  * - Gently swaying flower gardens
  * - Subtle mouse-driven parallax (on desktop >= 1024px)
- * - Accessible motion toggle persisted to localStorage
- * - Lightweight static pastel background on mobile (< 1024px) with 0 animation overhead
+ * - Fully animated on both mobile and desktop with mobile-optimized responsive scaling
  * - Native SVG and CSS animations (no external libraries or API costs)
  */
 export function AnimatedBackground({ children }: { children?: React.ReactNode }) {

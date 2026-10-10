@@ -534,32 +534,131 @@ body.h-paused .h-scene,
 }
 
 /* Mobile & Tablet (< 1024px)
- * Disable complex moving elements, preserve lightweight static cream/pastel background.
+ * Responsive animated scene: fully animated with mobile-optimized proportions.
  */
 @media (max-width: 1023px) {
-  .h-cloud,
-  .h-bee,
-  .h-plane,
-  .h-route,
-  .h-garden,
-  .h-mountain,
-  .h-spark {
-    display: none !important;
-    animation: none !important;
-  }
-  .h-hill {
-    opacity: 0.33;
-    animation: none !important;
-  }
+  /* Sun: breathing animation enabled with proportional mobile size */
   .h-sun {
-    right: -35px;
-    top: 5%;
-    scale: 0.65;
-    opacity: 0.4;
-    animation: none !important;
+    top: 6%;
+    right: 6%;
+    width: 82px;
+    height: 82px;
+    box-shadow: 0 0 0 20px rgba(255, 242, 207, 0.45), 0 0 70px 35px rgba(255, 230, 176, 0.3);
+    opacity: 0.8;
+    animation: h-breathe 9s ease-in-out infinite;
   }
+
+  /* Clouds: drift gracefully across mobile viewport without crowding */
+  .h-cloud.c1 {
+    top: 6%;
+    left: -2%;
+    width: 140px;
+    opacity: 0.7;
+  }
+  .h-cloud.c2 {
+    top: 19%;
+    right: -4%;
+    width: 115px;
+    opacity: 0.65;
+  }
+  .h-cloud.c3 {
+    top: 52%;
+    left: -5%;
+    width: 95px;
+    opacity: 0.4;
+  }
+  .h-cloud.c4 {
+    top: 4%;
+    right: 28%;
+    width: 75px;
+    opacity: 0.35;
+  }
+
+  /* Bees: playfully buzz with flapping wings, scaled for mobile screens */
+  .h-bee.b1 {
+    top: 18%;
+    left: 4%;
+    width: 42px;
+  }
+  .h-bee.b2 {
+    top: 62%;
+    right: 4%;
+    width: 35px;
+  }
+  .h-bee.b3 {
+    bottom: 14%;
+    left: 12%;
+    width: 29px;
+    opacity: 0.8;
+  }
+
+  /* Airplane: swoops across mobile sky */
+  .h-plane {
+    top: 28%;
+    width: 52px;
+  }
+
+  /* Dotted flight path */
+  .h-route {
+    opacity: 0.38;
+  }
+
+  /* Garden flowers: gently sway at bottom corners */
+  .h-garden {
+    width: 130px;
+    height: 130px;
+    bottom: -4px;
+  }
+
+  /* Distant mountains */
+  .h-mountain {
+    bottom: 11%;
+    width: 135px;
+    opacity: 0.35;
+  }
+
+  /* Rolling hills */
+  .h-hill {
+    opacity: 0.7;
+  }
+
+  /* Sparkles */
+  .h-spark {
+    font-size: 15px;
+  }
+  .h-spark.s3 {
+    font-size: 11px;
+  }
+
+  /* Motion Toggle compact on mobile */
   .h-motion-toggle {
-    padding: 0.35rem 0.7rem;
+    padding: 0.38rem 0.75rem;
     font-size: 0.725rem;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Extra compact adjustments for smaller phone screens */
+  .h-cloud.c1 {
+    width: 120px;
+  }
+  .h-cloud.c2 {
+    width: 95px;
+  }
+  .h-garden {
+    width: 110px;
+    height: 110px;
+  }
+  .h-bee.b1 {
+    width: 36px;
+  }
+  .h-bee.b2 {
+    width: 30px;
+  }
+  .h-bee.b3 {
+    width: 25px;
+  }
+  .h-plane {
+    width: 44px;
   }
 }
