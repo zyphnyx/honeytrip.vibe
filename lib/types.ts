@@ -41,19 +41,19 @@ export interface Place {
   id: string;
   category: PlaceCategory;
   source: PlaceSource;
-  providerPlaceId?: string;
+  providerPlaceId?: string | null;
   name: string;
-  location?: string;
+  location?: string | null;
   coords?: PlaceCoords | null;
-  externalUrl?: string;
+  externalUrl?: string | null;
   price?: number | null;
-  priceUnit?: string;
+  priceUnit?: string | null;
   capacity?: number | null;
-  estimatedDuration?: string;
-  notes?: string;
+  estimatedDuration?: string | null;
+  notes?: string | null;
   createdBy: string;
   createdByName: string;
-  createdByEmoji?: string;
+  createdByEmoji?: string | null;
   createdAt: number;
   updatedAt: number;
 }

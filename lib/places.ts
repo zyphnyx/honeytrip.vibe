@@ -72,6 +72,21 @@ export function subscribePlaceSettings(
   );
 }
 
+/** ทำความสะอาด Object ก่อนบันทึกลง Firestore — ตัด key ที่เป็น undefined ออก ป้องกัน Firestore โยน error */
+function sanitizeFirestorePayload<T extends Record<string, unknown>>(obj: T): T {
+  const result: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(obj)) {
+    if (val !== undefined) {
+      if (val && typeof val === "object" && !Array.isArray(val) && !(val instanceof Date)) {
+        result[key] = sanitizeFirestorePayload(val as Record<string, unknown>);
+      } else {
+        result[key] = val;
+      }
+    }
+  }
+  return result as T;
+}
+
 export async function savePlace(
   roomId: string,
   input: PlaceInput,
@@ -82,11 +97,11 @@ export async function savePlace(
   const now = Date.now();
   const targetId = placeId || doc(collection(db, "rooms", roomId, "places")).id;
   
-  const payload: Omit<Place, "id"> = {
+  const payload = sanitizeFirestorePayload({
     ...input,
     createdAt: input.source === "geoapify" ? now : (input as Partial<Place>).createdAt || now,
     updatedAt: now,
-  };
+  });
 
   await setDoc(doc(db, "rooms", roomId, "places", targetId), payload, { merge: true });
   return targetId;
@@ -104,10 +119,10 @@ export async function updatePlaceSettings(
 ): Promise<void> {
   await ensureUser();
   const db = getDb();
-  const payload: Partial<PlaceSettings> = {
+  const payload = sanitizeFirestorePayload({
     ...settings,
     updatedAt: Date.now(),
-  };
+  });
   await setDoc(doc(db, "rooms", roomId, "settings", "places"), payload, { merge: true });
 }
 
