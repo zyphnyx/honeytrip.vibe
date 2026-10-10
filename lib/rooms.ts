@@ -87,17 +87,19 @@ export async function removeMember(roomId: string, uid: string): Promise<void> {
 export async function deleteRoom(roomId: string): Promise<void> {
   await ensureUser();
   const db = getDb();
-  // ลบสมาชิกทั้งหมดในห้องก่อน
-  try {
-    const membersSnap = await getDocs(collection(db, "rooms", roomId, "members"));
-    if (!membersSnap.empty) {
+
+  // Cascade delete all subcollections: members, places, votes, settings
+  const subcollections = ["members", "places", "votes", "settings"];
+
+  for (const sub of subcollections) {
+    const snap = await getDocs(collection(db, "rooms", roomId, sub));
+    if (!snap.empty) {
       const batch = writeBatch(db);
-      membersSnap.forEach((d) => batch.delete(d.ref));
+      snap.forEach((d) => batch.delete(d.ref));
       await batch.commit();
     }
-  } catch (err) {
-    console.error("Failed to batch delete members:", err);
   }
-  // ลบตัวเอกสารห้อง
+
+  // Delete root room doc
   await deleteDoc(doc(db, "rooms", roomId));
 }

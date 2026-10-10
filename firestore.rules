@@ -49,6 +49,33 @@ service cloud.firestore {
           && request.resource.data.origin.size() <= 40;
         allow delete: if signedIn();
       }
+
+      // สถานที่เสนอ (ที่พัก / ที่เที่ยว)
+      match /places/{placeId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn()
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 100
+          && request.resource.data.category in ['stay', 'attraction']
+          && request.resource.data.createdBy is string;
+        allow delete: if signedIn();
+      }
+
+      // การโหวต (uid ของผู้โหวต)
+      match /votes/{voteUid} {
+        allow read: if signedIn();
+        allow create, update: if signedIn()
+          && request.auth.uid == voteUid;
+        allow delete: if signedIn();
+      }
+
+      // การตั้งค่าห้อง เช่น จุดหมายปลายทาง (destination)
+      match /settings/{settingId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn();
+        allow delete: if signedIn();
+      }
     }
   }
 }

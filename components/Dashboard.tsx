@@ -8,6 +8,8 @@ import type { Member, Room } from "@/lib/types";
 import { Calendar } from "./Calendar";
 import { MemberDetailModal } from "./MemberDetailModal";
 import { Tooltip } from "./Tooltip";
+import { TripPoolCard } from "./TripPoolCard";
+import { TripPoolModal } from "./TripPoolModal";
 
 function MemberAvatar({
   m,
@@ -85,6 +87,7 @@ export function Dashboard({
   const stats = useMemo(() => computeStats(members), [members]);
   const [copied, setCopied] = useState<"link" | "summary" | null>(null);
   const [inspectMember, setInspectMember] = useState<Member | null>(null);
+  const [showPoolModal, setShowPoolModal] = useState(false);
 
   const url = typeof window === "undefined" ? "" : `${window.location.origin}/t/${roomId}`;
   const summary = buildSummary(room, stats, url);
@@ -114,17 +117,17 @@ export function Dashboard({
 
   return (
     <div className="space-y-4">
-      {/* Quick Action Bar */}
-      <div className="grid grid-cols-2 gap-2">
+      {/* Quick Action Bar (3 Actions: Link, LINE, Pool QR) */}
+      <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
         <Tooltip content="คัดลอกลิงก์ห้องทริป เพื่อส่งให้เพื่อนในแชท" className="w-full">
-          <button className="btn-ghost w-full" onClick={() => copy(url, "link")}>
-            {copied === "link" ? "✓ คัดลอกแล้ว" : "🔗 คัดลอกลิงก์"}
+          <button className="btn-ghost w-full !text-[11px] sm:!text-xs !px-1 truncate" onClick={() => copy(url, "link")}>
+            {copied === "link" ? "✓ คัดลอกแล้ว" : "🔗 แชร์ลิงก์"}
           </button>
         </Tooltip>
 
         <Tooltip content="เปิด LINE พร้อมส่งลิงก์ห้องทริปทันที" className="w-full">
           <a
-            className="btn-ghost w-full"
+            className="btn-ghost w-full !text-[11px] sm:!text-xs !px-1 truncate text-center"
             target="_blank"
             rel="noreferrer"
             href={`https://line.me/R/msg/text/?${encodeURIComponent(
@@ -134,7 +137,25 @@ export function Dashboard({
             💬 ส่งเข้า LINE
           </a>
         </Tooltip>
+
+        <Tooltip content="เปิด QR Code สำหรับสแกนโอนเงินกองกลางทริป" className="w-full">
+          <button
+            className="btn-ghost w-full !text-[11px] sm:!text-xs !px-1 truncate border-amber-300/80 bg-amber-50/70 text-amber-950 font-bold hover:bg-amber-100 transition-colors"
+            onClick={() => setShowPoolModal(true)}
+          >
+            💸 กองกลาง
+          </button>
+        </Tooltip>
       </div>
+
+      {/* Trip Pool Card Banner */}
+      <TripPoolCard
+        qrUrl="/qr/mktamzgvgb.jpg"
+        accountName="น.ส. กานต์พิชชา สุริยนต์"
+        bankName="MAKE by KBank"
+        note="ไปเที่ยวกันครับ"
+      />
+
 
       {members.length === 0 ? (
         <div className="card py-12 text-center text-stone-500">
@@ -443,6 +464,17 @@ export function Dashboard({
         isCurrent={inspectMember?.id === uid}
         onClose={() => setInspectMember(null)}
       />
+
+      {/* Trip Pool QR Modal */}
+      <TripPoolModal
+        isOpen={showPoolModal}
+        onClose={() => setShowPoolModal(false)}
+        qrUrl="/qr/mktamzgvgb.jpg"
+        accountName="น.ส. กานต์พิชชา สุริยนต์"
+        bankName="MAKE by KBank (PromptPay)"
+        note="ไปเที่ยวกันครับ"
+      />
     </div>
   );
 }
+

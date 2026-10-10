@@ -26,3 +26,75 @@ export interface Member {
 }
 
 export type MemberInput = Omit<Member, "id" | "updatedAt">;
+
+// --- Place Discovery & Voting Types ---
+
+export type PlaceCategory = "stay" | "attraction";
+export type PlaceSource = "manual" | "geoapify";
+
+export interface PlaceCoords {
+  lat: number;
+  lon: number;
+}
+
+export interface Place {
+  id: string;
+  category: PlaceCategory;
+  source: PlaceSource;
+  providerPlaceId?: string;
+  name: string;
+  location?: string;
+  coords?: PlaceCoords | null;
+  externalUrl?: string;
+  price?: number | null;
+  priceUnit?: string;
+  capacity?: number | null;
+  estimatedDuration?: string;
+  notes?: string;
+  createdBy: string;
+  createdByName: string;
+  createdByEmoji?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type PlaceInput = Omit<Place, "id" | "createdAt" | "updatedAt">;
+
+export interface PlaceSettings {
+  destination: string;
+  destinationCoords?: PlaceCoords | null;
+  stayVotingStatus?: "open" | "closed";
+  attractionVotingStatus?: "open" | "closed";
+  finalizedStayId?: string | null;
+  finalizedAttractionIds?: string[];
+  updatedAt: number;
+}
+
+export interface VoteDoc {
+  id: string; // uid ของผู้โหวต
+  stayId?: string | null; // รองรับข้อมูลเดิม (backward compatible)
+  stayIds?: string[]; // เลือกที่พักได้มากกว่า 1 ที่ (สูงสุด 3 ที่)
+  attractionIds: string[]; // เลือกที่เที่ยวได้สูงสุด 3 ที่
+  updatedAt: number;
+}
+
+export interface PlaceVoteItem {
+  place: Place;
+  votesCount: number;
+  voterUids: string[];
+  voters: { uid: string; name: string; emoji: string }[];
+  isLeading: boolean;
+}
+
+export interface VotingResults {
+  eligibleVotersCount: number;
+  stayVotersCount: number;
+  attractionVotersCount: number;
+  stays: PlaceVoteItem[];
+  attractions: PlaceVoteItem[];
+  leadingStays: Place[];
+  leadingAttractions: Place[];
+  isStayTie: boolean;
+  isAttractionTie: boolean;
+}
+

@@ -92,6 +92,9 @@ export function Tooltip({
       className={`relative inline-flex items-center justify-center ${className}`}
       onMouseEnter={() => show(false)}
       onMouseLeave={hide}
+      onFocusCapture={() => show(true)}
+      onBlurCapture={hide}
+      aria-describedby={isOpen ? tooltipId : undefined}
       onClick={(e) => {
         // Allow mobile tap-to-inspect if not triggered by inner interactive click
         if (typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0)) {
@@ -102,17 +105,7 @@ export function Tooltip({
         }
       }}
     >
-      {React.cloneElement(children, {
-        "aria-describedby": isOpen ? tooltipId : undefined,
-        onFocus: (e: React.FocusEvent) => {
-          show(true); // Instant 0ms on keyboard focus
-          children.props?.onFocus?.(e);
-        },
-        onBlur: (e: React.FocusEvent) => {
-          hide();
-          children.props?.onBlur?.(e);
-        },
-      })}
+      {children}
 
       {isOpen && (
         <div

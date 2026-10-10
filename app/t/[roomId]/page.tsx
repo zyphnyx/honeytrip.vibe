@@ -6,11 +6,12 @@ import { Suspense, useEffect, useState } from "react";
 import { Dashboard } from "@/components/Dashboard";
 import { DeleteTripModal } from "@/components/DeleteTripModal";
 import { MemberForm } from "@/components/MemberForm";
+import { PlacesBoard } from "@/components/places/PlacesBoard";
 import { Tooltip } from "@/components/Tooltip";
 import { useRoom } from "@/lib/useRoom";
 import { useProfile } from "@/store/profile";
 
-type Tab = "dashboard" | "me";
+type Tab = "dashboard" | "places" | "me";
 
 function Notice({ children }: { children: React.ReactNode }) {
   return (
@@ -102,6 +103,16 @@ function RoomView() {
         />
       </>
     );
+  } else if (active === "places") {
+    body = (
+      <PlacesBoard
+        roomId={roomId}
+        room={room}
+        members={members}
+        uid={uid}
+        me={me}
+      />
+    );
   } else {
     body = <Dashboard room={room} roomId={roomId} members={members} uid={uid} />;
   }
@@ -152,9 +163,9 @@ function RoomView() {
         </div>
       </header>
 
-      {/* Navigation Tab Bar */}
+      {/* Navigation Tab Bar (3 Tabs: ภาพรวม, สถานที่, ข้อมูลฉัน) */}
       {room && members && uid && (
-        <nav className="mb-4 grid grid-cols-2 gap-1 rounded-2xl border border-stone-200/80 bg-stone-100/70 p-1">
+        <nav className="mb-4 grid grid-cols-3 gap-1 rounded-2xl border border-stone-200/80 bg-stone-100/70 p-1">
           <Tooltip content="ดูภาพรวม วันที่ว่างตรงกัน งบ และความพร้อมของแก๊ง">
             <button
               onClick={() => setTab("dashboard")}
@@ -164,7 +175,20 @@ function RoomView() {
                   : "text-stone-500 hover:text-stone-800"
               }`}
             >
-              📊 ภาพรวมทริป
+              📊 ภาพรวม
+            </button>
+          </Tooltip>
+
+          <Tooltip content="ค้นหา เสนอ และโหวตที่พักและที่เที่ยวกับเพื่อนๆ">
+            <button
+              onClick={() => setTab("places")}
+              className={`w-full rounded-xl py-2 text-xs font-bold transition-colors cursor-pointer ${
+                active === "places"
+                  ? "bg-white text-stone-950 shadow-xs border border-stone-200/60"
+                  : "text-stone-500 hover:text-stone-800"
+              }`}
+            >
+              📍 สถานที่
             </button>
           </Tooltip>
 
@@ -183,11 +207,12 @@ function RoomView() {
                   : "text-stone-500 hover:text-stone-800"
               }`}
             >
-              {me ? "✏️ ข้อมูลของฉัน" : "➕ เข้าร่วมทริป"}
+              {me ? "✏️ ข้อมูลฉัน" : "➕ เข้าร่วม"}
             </button>
           </Tooltip>
         </nav>
       )}
+
 
       {body}
 

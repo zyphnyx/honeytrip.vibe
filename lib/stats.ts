@@ -143,7 +143,15 @@ export function computeStats(members: Member[]): Stats {
 export const baht = (n: number) => `฿${n.toLocaleString("th-TH")}`;
 
 /** ข้อความสรุปสำหรับ copy ไปวางใน LINE */
-export function buildSummary(room: Room, stats: Stats, url: string): string {
+export function buildSummary(
+  room: Room,
+  stats: Stats,
+  url: string,
+  votingSummary?: {
+    leadingStay?: string;
+    leadingAttractions?: string[];
+  },
+): string {
   const lines = [`${room.emoji} ${room.title}`];
   lines.push(
     `👥 ไปแน่ ${stats.going.length} · ลังเล ${stats.maybe.length} · ไม่ไป ${stats.out.length}`,
@@ -162,6 +170,14 @@ export function buildSummary(room: Room, stats: Stats, url: string): string {
     );
   }
   if (stats.bestDuration) lines.push(`⏱ ${stats.bestDuration} วัน`);
+
+  if (votingSummary?.leadingStay) {
+    lines.push(`🏡 ที่พักคะแนนนำ: ${votingSummary.leadingStay}`);
+  }
+  if (votingSummary?.leadingAttractions && votingSummary.leadingAttractions.length > 0) {
+    lines.push(`📍 ที่เที่ยวคะแนนนำ: ${votingSummary.leadingAttractions.join(", ")}`);
+  }
+
   lines.push("", `กรอกข้อมูลที่นี่ 👉 ${url}`);
   return lines.join("\n");
 }
