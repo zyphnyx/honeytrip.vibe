@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Lilita_One } from "next/font/google";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ArchiveTripModal } from "@/components/ArchiveTripModal";
@@ -10,6 +11,11 @@ import { ensureUser, isFirebaseConfigured } from "@/lib/firebase";
 import { createRoom, restoreRoom } from "@/lib/rooms";
 import { useAllRooms } from "@/lib/useAllRooms";
 import { useProfile } from "@/store/profile";
+
+const lilitaOne = Lilita_One({
+  subsets: ["latin"],
+  weight: "400",
+});
 
 export default function Home() {
   const router = useRouter();
@@ -68,19 +74,19 @@ export default function Home() {
         <div className="inline-flex h-16 w-16 items-center justify-center rounded-3xl bg-amber-100 border border-amber-200 shadow-sm text-4xl">
           🍯
         </div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-stone-900">
+        <h1 className={`${lilitaOne.className} text-3xl tracking-normal text-stone-900`}>
           HoneyTrip
         </h1>
         <p className="text-sm font-medium text-stone-600 max-w-sm mx-auto">
-          นัดเที่ยวกับแก๊งเพื่อนแบบไร้รอยต่อ · ไม่ต้องล็อกอิน · อัปเดตสดแบบ Real-time
+          นัดเที่ยวกับแก๊งเพื่อน · ไม่ต้องล็อกอิน · อัปเดตแบบ Real-time
         </p>
 
         <div className="pt-1 flex flex-wrap justify-center gap-2">
           <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-[11px] font-medium text-stone-600">
-            ⚡ ซิงก์สด Real-time
+            ⚡ ใช้งานง่าย
           </span>
           <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-[11px] font-medium text-stone-600">
-            🛡️ คุ้มครองข้อมูล ป้องกันลบถาวร
+            🛡️ คุ้มครองข้อมูล ปลอดภัย
           </span>
           <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-[11px] font-medium text-stone-600">
             🆓 ฟรี 100%
