@@ -20,6 +20,7 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showArchivedSection, setShowArchivedSection] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<{
     id: string;
     title: string;
@@ -134,6 +135,17 @@ export default function Home() {
             <p className="text-xs text-stone-500">
               เป็นผู้นำทริปคนแรก สร้างห้องด้านล่างแล้วชวนเพื่อนมาวางแผนเที่ยวได้เลย!
             </p>
+            {!showCreateForm && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateForm(true)}
+                  className="btn-primary !py-2 !px-4 text-xs font-bold shadow-xs inline-flex items-center gap-1.5 cursor-pointer active:scale-98"
+                >
+                  <span>➕ สร้างทริปแรกเลย</span>
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-2.5">
@@ -330,72 +342,128 @@ export default function Home() {
         </section>
       )}
 
-      {/* CREATE ROOM CARD */}
+      {/* CREATE ROOM CARD (COLLAPSIBLE) */}
       <section className="space-y-3 pt-2">
-        <form onSubmit={submit} className="card space-y-4 border-amber-200/90 shadow-sm">
-          <div className="border-b border-stone-100 pb-2">
-            <h2 className="text-base font-bold text-stone-900">➕ สร้างห้องทริปใหม่</h2>
-            <p className="text-xs text-stone-500 mt-0.5 leading-relaxed">
-              ตั้งชื่อทริปใหม่แล้วระบบจะพาไปยังหน้าแดชบอร์ดเพื่อให้เพื่อนๆ เข้ามาร่วมลงชื่อ
-            </p>
-          </div>
-
-          <div>
-            <label className="label">ชื่อทริป</label>
-            <input
-              className="input text-base"
-              placeholder="เช่น ปลายฝนต้นหนาวเขาใหญ่, ภูเก็ตแก๊งมอ"
-              maxLength={60}
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="label">เลือกสัญลักษณ์ทริป</label>
-            <div className="flex flex-wrap gap-1.5">
-              {ROOM_EMOJIS.map((em) => (
-                <Tooltip key={em} content={`เลือกไอคอน ${em}`}>
-                  <button
-                    type="button"
-                    onClick={() => setEmoji(em)}
-                    className={`flex h-11 w-11 items-center justify-center rounded-xl text-xl transition-transform active:scale-90 cursor-pointer ${
-                      emoji === em
-                        ? "bg-amber-300 ring-2 ring-amber-500 scale-105 shadow-xs"
-                        : "bg-stone-50 hover:bg-stone-100 border border-stone-200/60"
-                    }`}
-                  >
-                    {em}
-                  </button>
-                </Tooltip>
-              ))}
-            </div>
-          </div>
-
-          {error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
-              ⚠️ {error}
-            </div>
-          )}
-
-          <Tooltip
-            content={
-              !isFirebaseConfigured
-                ? "กรุณาใส่ Firebase Config ใน .env.local ก่อนสร้างห้อง"
-                : "สร้างห้องทริปใหม่ และเข้าสู่แดชบอร์ดทันที"
-            }
-            className="w-full"
+        {!showCreateForm ? (
+          <button
+            type="button"
+            onClick={() => setShowCreateForm(true)}
+            className="card group w-full flex items-center justify-between gap-3 border-2 border-dashed border-amber-300/80 bg-amber-50/40 hover:bg-amber-100/60 hover:border-amber-400 !p-3.5 sm:!p-4 transition-all text-left cursor-pointer active:scale-99 shadow-xs"
           >
-            <button
-              type="submit"
-              className="btn-primary w-full !py-3 text-sm font-bold shadow-md"
-              disabled={busy || !isFirebaseConfigured}
-            >
-              {busy ? "กำลังสร้างห้องทริป…" : "🍯 สร้างห้องทริป แล้วเริ่มนัดเพื่อน"}
-            </button>
-          </Tooltip>
-        </form>
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-200/80 border border-amber-300/80 text-xl group-hover:scale-105 transition-transform shadow-xs">
+                ➕
+              </span>
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold text-stone-900 group-hover:text-amber-950">
+                  สร้างห้องทริปใหม่
+                </h3>
+                <p className="text-xs text-stone-500 truncate mt-0.5">
+                  ตั้งชื่อทริปใหม่แล้วชวนเพื่อนๆ เข้ามาร่วมลงชื่อ
+                </p>
+              </div>
+            </div>
+            <span className="shrink-0 flex items-center gap-1.5 rounded-xl bg-amber-400 hover:bg-amber-500 text-stone-900 font-bold text-xs px-3 py-2 shadow-xs transition-all group-hover:bg-amber-500">
+              <span>เปิดฟอร์ม</span>
+              <span className="text-[10px]">▼</span>
+            </span>
+          </button>
+        ) : (
+          <form
+            onSubmit={submit}
+            className="card space-y-4 border-amber-200/90 shadow-sm animate-in fade-in duration-150"
+          >
+            <div className="flex items-start justify-between border-b border-stone-100 pb-2.5 gap-2">
+              <div>
+                <h2 className="text-base font-bold text-stone-900">➕ สร้างห้องทริปใหม่</h2>
+                <p className="text-xs text-stone-500 mt-0.5 leading-relaxed">
+                  ตั้งชื่อทริปใหม่แล้วระบบจะพาไปยังหน้าแดชบอร์ดเพื่อให้เพื่อนๆ เข้ามาร่วมลงชื่อ
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setShowCreateForm(false);
+                }}
+                className="shrink-0 flex items-center gap-1 text-xs font-semibold text-stone-500 hover:text-stone-800 bg-stone-100 hover:bg-stone-200 px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer"
+                title="ย่อฟอร์มเก็บ"
+              >
+                <span>ย่อเก็บ</span>
+                <span className="text-[10px]">▲</span>
+              </button>
+            </div>
+
+            <div>
+              <label className="label">ชื่อทริป</label>
+              <input
+                className="input text-base"
+                placeholder="เช่น ปลายฝนต้นหนาวเขาใหญ่, ภูเก็ตแก๊งมอ"
+                maxLength={60}
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                autoFocus
+              />
+            </div>
+
+            <div>
+              <label className="label">เลือกสัญลักษณ์ทริป</label>
+              <div className="flex flex-wrap gap-1.5">
+                {ROOM_EMOJIS.map((em) => (
+                  <Tooltip key={em} content={`เลือกไอคอน ${em}`}>
+                    <button
+                      type="button"
+                      onClick={() => setEmoji(em)}
+                      className={`flex h-11 w-11 items-center justify-center rounded-xl text-xl transition-transform active:scale-90 cursor-pointer ${
+                        emoji === em
+                          ? "bg-amber-300 ring-2 ring-amber-500 scale-105 shadow-xs"
+                          : "bg-stone-50 hover:bg-stone-100 border border-stone-200/60"
+                      }`}
+                    >
+                      {em}
+                    </button>
+                  </Tooltip>
+                ))}
+              </div>
+            </div>
+
+            {error && (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
+                ⚠️ {error}
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setShowCreateForm(false);
+                }}
+                className="btn-secondary !py-3 text-sm font-semibold shrink-0"
+              >
+                ย่อเก็บ
+              </button>
+              <Tooltip
+                content={
+                  !isFirebaseConfigured
+                    ? "กรุณาใส่ Firebase Config ใน .env.local ก่อนสร้างห้อง"
+                    : "สร้างห้องทริปใหม่ และเข้าสู่แดชบอร์ดทันที"
+                }
+                className="flex-1"
+              >
+                <button
+                  type="submit"
+                  className="btn-primary w-full !py-3 text-sm font-bold shadow-md"
+                  disabled={busy || !isFirebaseConfigured}
+                >
+                  {busy ? "กำลังสร้างห้องทริป…" : "🍯 สร้างห้องทริป แล้วเริ่มนัดเพื่อน"}
+                </button>
+              </Tooltip>
+            </div>
+          </form>
+        )}
       </section>
 
       {/* Archive Trip Confirmation Modal */}
