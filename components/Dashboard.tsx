@@ -10,6 +10,8 @@ import { MemberDetailModal } from "./MemberDetailModal";
 import { Tooltip } from "./Tooltip";
 import { TripPoolCard } from "./TripPoolCard";
 import { TripPoolModal } from "./TripPoolModal";
+import { PlanSummaryCard } from "./plan/PlanSummaryCard";
+import { useActivities } from "@/lib/useActivities";
 
 function MemberAvatar({
   m,
@@ -85,6 +87,7 @@ export function Dashboard({
   uid: string;
 }) {
   const stats = useMemo(() => computeStats(members), [members]);
+  const planner = useActivities(roomId, members, uid);
   const [copied, setCopied] = useState<"link" | "summary" | null>(null);
   const [inspectMember, setInspectMember] = useState<Member | null>(null);
   const [showPoolModal, setShowPoolModal] = useState(false);
@@ -154,6 +157,14 @@ export function Dashboard({
         accountName="น.ส. กานต์พิชชา สุริยนต์"
         bankName="MAKE by KBank"
         note="ไปเที่ยวกันครับ"
+      />
+
+      {/* Trip Planner Summary Card */}
+      <PlanSummaryCard
+        roomId={roomId}
+        meta={planner.meta}
+        activities={planner.activities}
+        budget={planner.budget}
       />
 
 

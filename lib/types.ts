@@ -98,3 +98,98 @@ export interface VotingResults {
   isAttractionTie: boolean;
 }
 
+// --- Trip Timeline & Social Planner Types ---
+
+export interface TripPlanMeta {
+  startDate: string | null; // YYYY-MM-DD
+  endDate: string | null;   // YYYY-MM-DD
+  timezone: "Asia/Bangkok";
+  status: "draft" | "confirmed";
+  updatedBy: string;
+  updatedAt: number;
+}
+
+export type ActivityStatus =
+  | "proposed"
+  | "confirmed"
+  | "completed"
+  | "cancelled";
+
+export type ActivityCategory =
+  | "attraction"
+  | "food"
+  | "stay"
+  | "transport"
+  | "other";
+
+export type ActivityCostMode =
+  | "per_person"
+  | "split_total"
+  | "free"
+  | "unknown";
+
+export interface ActivityCost {
+  mode: ActivityCostMode;
+  amount: number | null;
+  currency: "THB";
+}
+
+export interface ActivityPlaceSnapshot {
+  name: string;
+  location?: string;
+  externalUrl?: string;
+}
+
+export interface Activity {
+  id: string;
+
+  title: string;
+  description: string;
+
+  category: ActivityCategory;
+  status: ActivityStatus;
+
+  date: string | null;      // YYYY-MM-DD
+  startTime: string | null; // HH:mm
+  endTime: string | null;   // HH:mm
+
+  placeId: string | null;
+  placeSnapshot: ActivityPlaceSnapshot | null;
+
+  transport: string | null;
+
+  cost: ActivityCost;
+  participantUids: string[];
+
+  likedByUids: string[];
+
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type ActivityInput = Omit<Activity, "id" | "createdAt" | "updatedAt" | "likedByUids">;
+
+export interface ActivityComment {
+  id: string;
+  activityId: string;
+  authorUid: string;
+  authorName?: string;
+  authorEmoji?: string;
+  body: string;
+  createdAt: number;
+}
+
+export interface PlanBudgetSummary {
+  totalEstimated: number;
+  totalActivitiesCount: number;
+  confirmedCount: number;
+  completedCount: number;
+  proposedCount: number;
+  cancelledCount: number;
+  unknownCostCount: number;
+  freeCostCount: number;
+  byParticipant: Record<string, number>;
+  byDate: Record<string, number>;
+}
+

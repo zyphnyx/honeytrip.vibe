@@ -88,15 +88,27 @@ export async function deleteRoom(roomId: string): Promise<void> {
   await ensureUser();
   const db = getDb();
 
-  // Cascade delete all subcollections: members, places, votes, settings
-  const subcollections = ["members", "places", "votes", "settings"];
+  // Cascade delete all subcollections: members, places, votes, settings, plan, activities, activityComments
+  const subcollections = [
+    "members",
+    "places",
+    "votes",
+    "settings",
+    "plan",
+    "activities",
+    "activityComments",
+  ];
 
   for (const sub of subcollections) {
     const snap = await getDocs(collection(db, "rooms", roomId, sub));
     if (!snap.empty) {
-      const batch = writeBatch(db);
-      snap.forEach((d) => batch.delete(d.ref));
-      await batch.commit();
+      // Chunk in groups of 400 to respect Firestore's 500-operation write limit
+      const docs = snap.docs;
+      for (let i = 0; i < docs.length; i += 400) {
+        const batch = writeBatch(db);
+        docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+      }
     }
   }
 

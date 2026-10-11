@@ -76,6 +76,40 @@ service cloud.firestore {
         allow create, update: if signedIn();
         allow delete: if signedIn();
       }
+
+      // ข้อมูลการวางแผนทริป เช่น วันเดินทางที่คอนเฟิร์ม (rooms/{roomId}/plan/meta)
+      match /plan/{planDocId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn()
+          && request.resource.data.timezone is string;
+        allow delete: if signedIn();
+      }
+
+      // กิจกรรมในทริป (Social Feed & Timeline)
+      match /activities/{activityId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn()
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.title.size() <= 120
+          && request.resource.data.category in ['attraction', 'food', 'stay', 'transport', 'other']
+          && request.resource.data.status in ['proposed', 'confirmed', 'completed', 'cancelled']
+          && request.resource.data.createdBy is string;
+        allow delete: if signedIn();
+      }
+
+      // ความคิดเห็นในกิจกรรม (สร้างได้ ลบได้ ห้ามแก้ไข)
+      match /activityComments/{commentId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.resource.data.body is string
+          && request.resource.data.body.size() > 0
+          && request.resource.data.body.size() <= 500
+          && request.resource.data.activityId is string
+          && request.resource.data.authorUid is string;
+        allow update: if false;
+        allow delete: if signedIn();
+      }
     }
   }
 }

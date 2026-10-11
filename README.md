@@ -10,6 +10,12 @@
   - กรอกชื่อ, สถานะ (ไปแน่/ลังเล/ไม่ไป), จำนวนวัน, งบ, **วันที่ว่าง**, ต้นทาง/รถ, สไตล์
   - Dashboard real-time: heatmap วันว่าง + **ช่วงวันที่ลงตัวที่สุด**, งบที่ลงตัว, จำนวนวัน, สไตล์/รถ
   - คัดลอกสรุปส่ง LINE พร้อมผลโหวตสถานที่
+- **🗓️ แผนเที่ยวของเรา (Phase 3 - Trip Timeline & Social Planner):**
+  - **💡 ไอเดียจากเพื่อน (Social Feed):** โพสต์เสนอไอเดียกิจกรรม, กดหัวใจ ❤️, คอมเมนต์พูดคุยแบบ Real-time, เลื่อนสถานะเป็นกิจกรรมทางการ
+  - **🗓️ ตารางเที่ยว (Daily Timeline):** จัดตาราง Day 1, Day 2... อัตโนมัติตามวันเดินทางจริง, มี **Today Mode** ปักหมุดวันปัจจุบันในโซนเวลาไทย, ตรวจจับเวลาซ้ำซ้อน (Conflict Detection), เช็กอินกิจกรรมที่ทำแล้ว
+  - **💰 คำนวณงบประมาณแผนเที่ยว (Estimated Budget):** รองรับโหมดต่อคน / หารรวม / ฟรี / ไม่ระบุราคา พร้อมแจกแจงตามคนที่เข้าร่วมแต่ละกิจกรรม
+  - **💬 ส่งแผนเที่ยวเข้า LINE:** จัดฟอร์แมตสรุปแผนกิจกรรมและงบประมาณส่งเข้ากลุ่ม LINE ได้ในคลิกเดียว
+  - **📍 เชื่อมโยงสถานที่:** ดึงที่พักและที่เที่ยวที่ผ่านการโหวตมาใส่ในกิจกรรมได้ทันที พร้อมเก็บ Snapshot แม้สถานที่เดิมจะถูกลบ
 - **ค้นหาและโหวตสถานที่ (Phase 2 - Place Discovery & Voting):**
   - **🏡 ที่พัก (Accommodation):** เสนอได้ไม่จำกัด, โหวตได้ 1 ที่ต่อคน (สลับ/ถอนโหวตได้), แสดงราคา/คืน, ความจุคน, ทำเล, ลิงก์จอง
   - **📍 ที่เที่ยว (Attractions):** เสนอได้ไม่จำกัด, โหวตได้สูงสุด 3 ที่ต่อคน (สลับ/ถอนโหวตได้), แสดงค่าเข้า, เวลาที่ใช้เที่ยว, ลิงก์แผนที่
@@ -22,7 +28,7 @@
 1. [Firebase Console](https://console.firebase.google.com) → Add project (ปิด Analytics ได้)
 2. **Build → Firestore Database** → Create database (production mode, region `asia-southeast1`)
 3. **Build → Authentication → Sign-in method** → เปิด **Anonymous**
-4. **Firestore → Rules** → วางเนื้อหาจาก [`firestore.rules`](./firestore.rules) แล้ว Publish (รองรับ `rooms`, `members`, `places`, `votes`, `settings`)
+4. **Firestore → Rules** → วางเนื้อหาจาก [`firestore.rules`](./firestore.rules) แล้ว Publish (รองรับ `rooms`, `members`, `places`, `votes`, `settings`, `plan`, `activities`, `activityComments`)
 5. **Project settings → Your apps → Web (`</>`)** → copy config
 6. `copy .env.example .env.local` แล้วใส่ค่า
 
