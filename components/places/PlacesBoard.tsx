@@ -19,7 +19,7 @@ interface PlacesBoardProps {
   me: Member | undefined;
 }
 
-export function PlacesBoard({ roomId, members, uid, me }: PlacesBoardProps) {
+export function PlacesBoard({ roomId, room, members, uid, me }: PlacesBoardProps) {
   const [activeCategory, setActiveCategory] = useState<PlaceCategory>("stay");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -42,7 +42,8 @@ export function PlacesBoard({ roomId, members, uid, me }: PlacesBoardProps) {
 
   const isStay = activeCategory === "stay";
   const items = isStay ? results.stays : results.attractions;
-  const isEligible = Boolean(me && (me.status === "going" || me.status === "maybe"));
+  const isArchived = Boolean(room?.archived);
+  const isEligible = !isArchived && Boolean(me && (me.status === "going" || me.status === "maybe"));
 
   // สถานะการโหวตของฉัน (ทั้งที่พักและที่เที่ยว โหวตได้สูงสุดคนละ 3 ที่)
   const myStayVoteIds = useMemo(
@@ -136,33 +137,40 @@ export function PlacesBoard({ roomId, members, uid, me }: PlacesBoardProps) {
       {/* 3. Participation & Voting Progress Indicator */}
       <VoteProgress category={activeCategory} results={results} />
 
-      {/* 4. Action Buttons (Search & Manual Add) */}
-      <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-        <Tooltip content="ค้นหาสถานที่รอบปลายทางผ่าน OpenStreetMap / แผนที่" className="w-full">
-          <button
-            type="button"
-            onClick={() => setIsSearchOpen(true)}
-            className="w-full flex items-center justify-center gap-2 rounded-2xl border border-stone-200/90 bg-white py-3 px-3 text-xs font-bold text-stone-800 shadow-2xs hover:border-amber-300 hover:bg-amber-50/60 hover:text-amber-950 transition-all cursor-pointer active:scale-98"
-          >
-            <span className="text-sm">🔍</span>
-            <span className="truncate">ค้นหา{isStay ? "ที่พัก" : "ที่เที่ยว"}</span>
-          </button>
-        </Tooltip>
+      {/* 4. Action Buttons (Search & Manual Add) or Archived Notice */}
+      {isArchived ? (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 font-semibold flex items-center gap-2">
+          <span>🔒</span>
+          <span>ทริปนี้ถูกจัดเก็บแล้ว (อ่านอย่างเดียว) กรุณากู้คืนทริปก่อนเสนอสถานที่หรือร่วมโหวต</span>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+          <Tooltip content="ค้นหาสถานที่รอบปลายทางผ่าน OpenStreetMap / แผนที่" className="w-full">
+            <button
+              type="button"
+              onClick={() => setIsSearchOpen(true)}
+              className="w-full flex items-center justify-center gap-2 rounded-2xl border border-stone-200/90 bg-white py-3 px-3 text-xs font-bold text-stone-800 shadow-2xs hover:border-amber-300 hover:bg-amber-50/60 hover:text-amber-950 transition-all cursor-pointer active:scale-98"
+            >
+              <span className="text-sm">🔍</span>
+              <span className="truncate">ค้นหา{isStay ? "ที่พัก" : "ที่เที่ยว"}</span>
+            </button>
+          </Tooltip>
 
-        <Tooltip content="กรอกชื่อสถานที่หรือแปะลิงก์ที่เพื่อนแนะนำมาด้วยตนเอง" className="w-full">
-          <button
-            type="button"
-            onClick={() => {
-              setEditingPlace(null);
-              setIsAddModalOpen(true);
-            }}
-            className="w-full flex items-center justify-center gap-2 rounded-2xl bg-amber-500 py-3 px-3 text-xs font-bold text-white shadow-xs hover:bg-amber-600 transition-all cursor-pointer active:scale-98"
-          >
-            <span className="text-sm">➕</span>
-            <span className="truncate">เสนอ{isStay ? "ที่พัก" : "ที่เที่ยว"}เอง</span>
-          </button>
-        </Tooltip>
-      </div>
+          <Tooltip content="กรอกชื่อสถานที่หรือแปะลิงก์ที่เพื่อนแนะนำมาด้วยตนเอง" className="w-full">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingPlace(null);
+                setIsAddModalOpen(true);
+              }}
+              className="w-full flex items-center justify-center gap-2 rounded-2xl bg-amber-500 py-3 px-3 text-xs font-bold text-white shadow-xs hover:bg-amber-600 transition-all cursor-pointer active:scale-98"
+            >
+              <span className="text-sm">➕</span>
+              <span className="truncate">เสนอ{isStay ? "ที่พัก" : "ที่เที่ยว"}เอง</span>
+            </button>
+          </Tooltip>
+        </div>
+      )}
 
       {/* 5. Warning banner if user is not eligible to vote */}
       {!isEligible && (

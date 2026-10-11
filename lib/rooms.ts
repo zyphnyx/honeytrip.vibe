@@ -2,10 +2,9 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDocs,
   onSnapshot,
   setDoc,
-  writeBatch,
+  updateDoc,
   type Unsubscribe,
 } from "firebase/firestore";
 import { ensureUser, getDb } from "./firebase";
@@ -21,11 +20,37 @@ export function generateRoomId(length = 10): string {
 }
 
 export async function createRoom(title: string, emoji: string): Promise<string> {
-  await ensureUser();
+  const user = await ensureUser();
   const id = generateRoomId();
-  const room: Room = { title: title.trim(), emoji, createdAt: Date.now() };
+  const room: Room = {
+    title: title.trim(),
+    emoji,
+    createdAt: Date.now(),
+    ownerUid: user.uid,
+    archived: false,
+  };
   await setDoc(doc(getDb(), "rooms", id), room);
   return id;
+}
+
+export async function archiveRoom(roomId: string): Promise<void> {
+  const user = await ensureUser();
+  const db = getDb();
+  await updateDoc(doc(db, "rooms", roomId), {
+    archived: true,
+    archivedAt: Date.now(),
+    archivedBy: user.uid,
+  });
+}
+
+export async function restoreRoom(roomId: string): Promise<void> {
+  await ensureUser();
+  const db = getDb();
+  await updateDoc(doc(db, "rooms", roomId), {
+    archived: false,
+    archivedAt: null,
+    archivedBy: null,
+  });
 }
 
 export interface RoomWithId extends Room {
@@ -84,34 +109,13 @@ export async function removeMember(roomId: string, uid: string): Promise<void> {
   await deleteDoc(doc(getDb(), "rooms", roomId, "members", uid));
 }
 
-export async function deleteRoom(roomId: string): Promise<void> {
-  await ensureUser();
-  const db = getDb();
-
-  // Cascade delete all subcollections: members, places, votes, settings, plan, activities, activityComments
-  const subcollections = [
-    "members",
-    "places",
-    "votes",
-    "settings",
-    "plan",
-    "activities",
-    "activityComments",
-  ];
-
-  for (const sub of subcollections) {
-    const snap = await getDocs(collection(db, "rooms", roomId, sub));
-    if (!snap.empty) {
-      // Chunk in groups of 400 to respect Firestore's 500-operation write limit
-      const docs = snap.docs;
-      for (let i = 0; i < docs.length; i += 400) {
-        const batch = writeBatch(db);
-        docs.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
-        await batch.commit();
-      }
-    }
-  }
-
-  // Delete root room doc
-  await deleteDoc(doc(db, "rooms", roomId));
+/**
+ * @deprecated การลบห้องทริปถาวรถูกปิดใช้งานอย่างเด็ดขาดเพื่อความปลอดภัยของข้อมูล
+ * ห้ามลบข้อมูลทริปถาวรผ่าน Client SDK โดยให้ใช้ฟังก์ชัน archiveRoom() แทน
+ */
+export async function deleteRoom(_roomId?: string): Promise<void> {
+  void _roomId;
+  throw new Error(
+    "ไม่อนุญาตให้ลบห้องทริปถาวรผ่านหน้าเว็บ เพื่อความปลอดภัยของข้อมูล กรุณาใช้ฟังก์ชันจัดเก็บทริป (Archive) แทน",
+  );
 }

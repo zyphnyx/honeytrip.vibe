@@ -5,6 +5,10 @@ export interface Room {
   title: string;
   emoji: string;
   createdAt: number;
+  ownerUid?: string;
+  archived?: boolean;
+  archivedAt?: number | null;
+  archivedBy?: string | null;
 }
 
 export interface Member {
@@ -192,4 +196,33 @@ export interface PlanBudgetSummary {
   byParticipant: Record<string, number>;
   byDate: Record<string, number>;
 }
+
+export interface TripBackupCounts {
+  members: number;
+  places: number;
+  votes: number;
+  settings: number;
+  plan: number;
+  activities: number;
+  activityComments: number;
+}
+
+export interface TripBackup {
+  format: "honeytrip-backup";
+  schemaVersion: number;
+  exportedAt: string;
+  roomId: string;
+  data: {
+    room: Room;
+    members: Member[];
+    places: Place[];
+    votes: Array<{ id: string; [key: string]: unknown }>;
+    settings: Array<{ id: string; [key: string]: unknown }>;
+    plan: Array<{ id: string; [key: string]: unknown }>;
+    activities: Activity[];
+    activityComments: ActivityComment[];
+  };
+  counts: TripBackupCounts;
+}
+
 

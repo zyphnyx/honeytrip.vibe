@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { ArchiveTripModal } from "@/components/ArchiveTripModal";
 import { Dashboard } from "@/components/Dashboard";
-import { DeleteTripModal } from "@/components/DeleteTripModal";
 import { MemberForm } from "@/components/MemberForm";
 import { PlacesBoard } from "@/components/places/PlacesBoard";
 import { Tooltip } from "@/components/Tooltip";
+import { TripProtectionModal } from "@/components/TripProtectionModal";
+import { restoreRoom } from "@/lib/rooms";
 import { useRoom } from "@/lib/useRoom";
 import { useProfile } from "@/store/profile";
 
@@ -39,12 +41,13 @@ export default function RoomPage() {
 }
 
 function RoomView() {
-  const router = useRouter();
   const { roomId } = useParams<{ roomId: string }>();
   const { uid, room, members, error } = useRoom(roomId);
   const addRecent = useProfile((s) => s.addRecent);
   const [tab, setTab] = useState<Tab | null>(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showProtectionModal, setShowProtectionModal] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   useEffect(() => {
     if (room) addRecent({ id: roomId, title: room.title, emoji: room.emoji });
@@ -53,6 +56,20 @@ function RoomView() {
   const me = members?.find((m) => m.id === uid);
   // ยังไม่เคยกรอก → แสดงหน้ากรอกก่อน
   const active: Tab = tab ?? (me ? "dashboard" : "me");
+  const isOwner = Boolean(room?.ownerUid && uid && room.ownerUid === uid);
+  const isArchived = Boolean(room?.archived);
+
+  async function handleRestoreTrip() {
+    if (!roomId) return;
+    setIsRestoring(true);
+    try {
+      await restoreRoom(roomId);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "กู้คืนทริปไม่สำเร็จ");
+    } finally {
+      setIsRestoring(false);
+    }
+  }
 
   let body: React.ReactNode;
   if (error) {
@@ -69,11 +86,11 @@ function RoomView() {
         <p className="text-3xl">🔍</p>
         <p className="text-sm font-bold text-stone-800">ไม่พบห้องทริปนี้</p>
         <p className="text-xs text-stone-500">
-          รหัสห้องอาจจะไม่ถูกต้อง หรือห้องถูกลบไปแล้ว
+          รหัสห้องอาจจะไม่ถูกต้อง หรือห้องถูกจัดเก็บไปแล้ว
         </p>
         <div className="pt-2">
           <Link href="/" className="btn-primary !text-xs !py-2">
-            กลับหน้าแรกเพื่อสร้างห้องใหม่
+            กลับหน้าแรก
           </Link>
         </div>
       </Notice>
@@ -88,7 +105,7 @@ function RoomView() {
   } else if (active === "me") {
     body = (
       <>
-        {!me && (
+        {!me && !isArchived && (
           <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-amber-900 leading-relaxed">
             <span className="font-bold">👋 ยินดีต้อนรับสู่ทริปนี้!</span>{" "}
             กรอกวันว่าง งบ และสไตล์ของคุณ เพื่อให้ระบบนำไปคำนวณวันและงบที่ลงตัวที่สุดสำหรับกลุ่มเพื่อน
@@ -99,6 +116,7 @@ function RoomView() {
           roomId={roomId}
           uid={uid}
           initial={me}
+          isArchived={isArchived}
           onSaved={() => setTab("dashboard")}
         />
       </>
@@ -143,25 +161,50 @@ function RoomView() {
           </div>
         </div>
 
-        {/* Room Code Badge & Delete Button */}
+        {/* Room Code Badge & Trip Protection Button */}
         <div className="flex items-center gap-1.5 shrink-0">
           <Tooltip content="รหัสห้องทริป (ใช้แชร์ให้เพื่อน)">
             <span className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-mono font-semibold text-amber-800">
               #{roomId}
             </span>
           </Tooltip>
-          <Tooltip content="ลบห้องทริปนี้ถาวร">
+          <Tooltip content="การป้องกันข้อมูลทริป & ตั้งค่าจัดเก็บ">
             <button
               type="button"
-              onClick={() => setShowDeleteModal(true)}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-stone-400 hover:bg-red-50 hover:text-red-600 border border-transparent hover:border-red-200 transition-colors cursor-pointer"
-              aria-label="ลบห้องทริปนี้"
+              onClick={() => setShowProtectionModal(true)}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-amber-700 bg-amber-50/80 hover:bg-amber-100 border border-amber-200/80 hover:border-amber-300 transition-colors cursor-pointer"
+              aria-label="การป้องกันข้อมูลทริป"
             >
-              🗑️
+              🛡️
             </button>
           </Tooltip>
         </div>
       </header>
+
+      {/* Archived Read-Only Banner */}
+      {isArchived && (
+        <div className="mb-4 rounded-2xl border border-amber-300 bg-gradient-to-r from-amber-100/90 via-amber-50 to-amber-100/80 p-3.5 sm:p-4 text-xs text-amber-950 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-in fade-in">
+          <div className="flex items-start gap-2.5">
+            <span className="text-2xl shrink-0">📦</span>
+            <div>
+              <h4 className="font-bold text-stone-900 text-sm">ทริปนี้ถูกจัดเก็บไว้แล้ว (Archived)</h4>
+              <p className="text-stone-600 mt-0.5 leading-relaxed">
+                คุณยังสามารถดูข้อมูลเดิมได้ครบถ้วน แต่ต้องกู้คืนทริปก่อนแก้ไขหรือเพิ่มข้อมูลใหม่
+              </p>
+            </div>
+          </div>
+          {isOwner && (
+            <button
+              type="button"
+              disabled={isRestoring}
+              onClick={handleRestoreTrip}
+              className="btn-primary shrink-0 !py-2 !px-3.5 text-xs font-bold cursor-pointer shadow-xs active:scale-98"
+            >
+              {isRestoring ? "กำลังกู้คืน…" : "↩️ กู้คืนทริป"}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Navigation Tab Bar (3 Tabs: ภาพรวม, สถานที่, ข้อมูลฉัน) */}
       {room && members && uid && (
@@ -213,16 +256,30 @@ function RoomView() {
         </nav>
       )}
 
-
       {body}
 
-      {/* Delete Confirmation Modal */}
-      <DeleteTripModal
-        roomId={showDeleteModal ? roomId : null}
+      {/* Trip Protection Modal */}
+      {room && (
+        <TripProtectionModal
+          isOpen={showProtectionModal}
+          roomId={roomId}
+          room={room}
+          uid={uid}
+          onClose={() => setShowProtectionModal(false)}
+          onOpenArchiveModal={() => setShowArchiveModal(true)}
+          onRestoreTrip={handleRestoreTrip}
+        />
+      )}
+
+      {/* Archive Trip Confirmation Modal */}
+      <ArchiveTripModal
+        roomId={showArchiveModal ? roomId : null}
         roomTitle={room?.title}
         roomEmoji={room?.emoji}
-        onClose={() => setShowDeleteModal(false)}
-        onDeleted={() => router.push("/")}
+        onClose={() => setShowArchiveModal(false)}
+        onArchived={() => {
+          setShowArchiveModal(false);
+        }}
       />
     </main>
   );

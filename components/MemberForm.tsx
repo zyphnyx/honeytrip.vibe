@@ -12,12 +12,13 @@ interface Props {
   roomId: string;
   uid: string;
   initial?: Member;
+  isArchived?: boolean;
   onSaved: () => void;
 }
 
 const DAY_OPTIONS = Array.from({ length: MAX_DAYS }, (_, i) => i + 1);
 
-export function MemberForm({ roomId, uid, initial, onSaved }: Props) {
+export function MemberForm({ roomId, uid, initial, isArchived, onSaved }: Props) {
   const profile = useProfile();
   const [name, setName] = useState(initial?.name ?? profile.name);
   const [emoji, setEmoji] = useState(initial?.emoji ?? profile.emoji);
@@ -334,17 +335,26 @@ export function MemberForm({ roomId, uid, initial, onSaved }: Props) {
         </div>
       )}
 
+      {isArchived && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 font-semibold flex items-center gap-2">
+          <span>🔒</span>
+          <span>ทริปนี้ถูกจัดเก็บแล้ว (อ่านอย่างเดียว) กรุณากู้คืนทริปก่อนแก้ไขข้อมูล</span>
+        </div>
+      )}
+
       {/* Buttons */}
       <div className="flex gap-2 pt-2">
-        <button type="submit" disabled={saving} className="btn-primary flex-1 !py-3">
+        <button type="submit" disabled={saving || isArchived} className="btn-primary flex-1 !py-3">
           {saving
             ? "กำลังบันทึกข้อมูล…"
+            : isArchived
+            ? "🔒 ทริปถูกจัดเก็บแล้ว"
             : initial
             ? "✓ อัปเดตข้อมูลของฉัน"
             : "🍯 ยืนยันเข้าร่วมทริป"}
         </button>
 
-        {initial && (
+        {initial && !isArchived && (
           <Tooltip content="ลบข้อมูลการเข้าร่วมทริปนี้ออกจากระบบ">
             <button type="button" onClick={leave} className="btn-danger !py-3">
               ลบข้อมูล

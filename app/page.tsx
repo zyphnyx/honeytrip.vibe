@@ -2,23 +2,25 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { DeleteTripModal } from "@/components/DeleteTripModal";
+import { useEffect, useMemo, useState } from "react";
+import { ArchiveTripModal } from "@/components/ArchiveTripModal";
 import { Tooltip } from "@/components/Tooltip";
 import { ROOM_EMOJIS } from "@/lib/constants";
-import { isFirebaseConfigured } from "@/lib/firebase";
-import { createRoom } from "@/lib/rooms";
+import { ensureUser, isFirebaseConfigured } from "@/lib/firebase";
+import { createRoom, restoreRoom } from "@/lib/rooms";
 import { useAllRooms } from "@/lib/useAllRooms";
 import { useProfile } from "@/store/profile";
 
 export default function Home() {
   const router = useRouter();
   const { rooms, error: roomsError } = useAllRooms();
+  const [currentUid, setCurrentUid] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [emoji, setEmoji] = useState(ROOM_EMOJIS[0]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<{
+  const [showArchivedSection, setShowArchivedSection] = useState(false);
+  const [archiveTarget, setArchiveTarget] = useState<{
     id: string;
     title: string;
     emoji: string;
@@ -26,6 +28,23 @@ export default function Home() {
 
   const recent = useProfile((s) => s.recentRooms);
   const recentIds = new Set(recent.map((r) => r.id));
+
+  useEffect(() => {
+    if (isFirebaseConfigured) {
+      ensureUser()
+        .then((user) => setCurrentUid(user.uid))
+        .catch(() => {});
+    }
+  }, []);
+
+  const activeRooms = useMemo(
+    () => rooms?.filter((r) => !r.archived),
+    [rooms],
+  );
+  const archivedRooms = useMemo(
+    () => rooms?.filter((r) => r.archived),
+    [rooms],
+  );
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -60,7 +79,7 @@ export default function Home() {
             ⚡ ซิงก์สด Real-time
           </span>
           <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-[11px] font-medium text-stone-600">
-            👥 เห็นทริปทุกคนในกลุ่ม
+            🛡️ คุ้มครองข้อมูล ป้องกันลบถาวร
           </span>
           <span className="rounded-full bg-stone-100 px-2.5 py-0.5 text-[11px] font-medium text-stone-600">
             🆓 ฟรี 100%
@@ -79,16 +98,16 @@ export default function Home() {
         </div>
       )}
 
-      {/* ALL TRIPS LIST SECTION */}
+      {/* ACTIVE TRIPS SECTION */}
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-bold text-stone-900">
-              🏖️ ทริปทั้งหมดในกลุ่ม
+              🏖️ ทริปที่กำลังใช้งาน
             </h2>
-            {rooms && (
+            {activeRooms && (
               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900">
-                {rooms.length} ทริป
+                {activeRooms.length} ทริป
               </span>
             )}
           </div>
@@ -99,27 +118,28 @@ export default function Home() {
 
         {roomsError && (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-900">
-            ⚠️ <b>คำแนะนำ:</b> หากไม่เห็นรายการทริป โปรดตรวจสอบว่าได้อัปเดต Rules บน Firebase Console ให้เป็น <code>allow read, delete: if signedIn();</code> แล้ว Publish หรือยัง
+            ⚠️ <b>คำแนะนำ:</b> หากไม่เห็นรายการทริป โปรดตรวจสอบว่าได้อัปเดต Rules บน Firebase Console แล้วหรือยัง
           </div>
         )}
 
         {rooms === undefined ? (
           <div className="card py-8 text-center text-stone-500">
             <div className="text-2xl animate-pulse mb-1">🍯</div>
-            <p className="text-xs font-medium">กำลังโหลดรายการทริปทั้งหมด…</p>
+            <p className="text-xs font-medium">กำลังโหลดรายการทริป…</p>
           </div>
-        ) : rooms.length === 0 ? (
+        ) : activeRooms && activeRooms.length === 0 ? (
           <div className="card py-8 text-center text-stone-500 space-y-2">
             <p className="text-2xl">🌴</p>
-            <p className="text-sm font-semibold text-stone-800">ยังไม่มีทริปที่ถูกสร้าง</p>
+            <p className="text-sm font-semibold text-stone-800">ยังไม่มีทริปที่กำลังใช้งาน</p>
             <p className="text-xs text-stone-500">
-              เป็นผู้นำทริปคนแรก สร้างห้องด้านล่างแล้วชวนเพื่อนมาโหวตได้เลย!
+              เป็นผู้นำทริปคนแรก สร้างห้องด้านล่างแล้วชวนเพื่อนมาวางแผนเที่ยวได้เลย!
             </p>
           </div>
         ) : (
           <div className="space-y-2.5">
-            {rooms.map((r) => {
+            {activeRooms?.map((r) => {
               const isRecent = recentIds.has(r.id);
+              const isOwner = Boolean(r.ownerUid && currentUid && r.ownerUid === currentUid);
               const dateStr = r.createdAt
                 ? new Date(r.createdAt).toLocaleDateString("th-TH", {
                     day: "numeric",
@@ -151,6 +171,11 @@ export default function Home() {
                             เข้าล่าสุด
                           </span>
                         )}
+                        {isOwner && (
+                          <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900 border border-amber-300">
+                            👑 ผู้ดูแล
+                          </span>
+                        )}
                       </div>
                       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-stone-500 mt-1 sm:mt-0.5">
                         <span className="font-mono font-semibold text-stone-600 bg-stone-100 px-1.5 py-0.5 rounded text-[11px]">
@@ -175,20 +200,22 @@ export default function Home() {
                       <span className="text-xs">→</span>
                     </Link>
 
-                    <Tooltip content="ลบห้องทริปนี้ถาวร">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setDeleteTarget({ id: r.id, title: r.title, emoji: r.emoji });
-                        }}
-                        className="flex h-11 w-11 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl text-stone-400 hover:bg-red-50 hover:text-red-600 hover:border-red-200 border border-stone-200/60 sm:border-transparent transition-all cursor-pointer active:scale-95"
-                        aria-label={`ลบทริป ${r.title}`}
-                      >
-                        🗑️
-                      </button>
-                    </Tooltip>
+                    {isOwner && (
+                      <Tooltip content="จัดเก็บทริปนี้เข้าคลัง (ข้อมูลไม่สูญหาย)">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setArchiveTarget({ id: r.id, title: r.title, emoji: r.emoji });
+                          }}
+                          className="flex h-11 w-11 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-xl text-stone-400 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-300 border border-stone-200/60 sm:border-transparent transition-all cursor-pointer active:scale-95"
+                          aria-label={`จัดเก็บทริป ${r.title}`}
+                        >
+                          📦
+                        </button>
+                      </Tooltip>
+                    )}
                   </div>
                 </div>
               );
@@ -196,6 +223,112 @@ export default function Home() {
           </div>
         )}
       </section>
+
+      {/* ARCHIVED TRIPS SECTION */}
+      {archivedRooms && archivedRooms.length > 0 && (
+        <section className="space-y-3 pt-1">
+          <div className="flex items-center justify-between px-1">
+            <button
+              type="button"
+              onClick={() => setShowArchivedSection((prev) => !prev)}
+              className="flex items-center gap-2 text-sm font-bold text-stone-700 hover:text-stone-900 transition-colors cursor-pointer"
+            >
+              <span>📦 คลังทริปที่จัดเก็บไว้</span>
+              <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs font-semibold text-stone-700">
+                {archivedRooms.length}
+              </span>
+              <span className="text-xs text-amber-700 font-semibold underline underline-offset-2">
+                {showArchivedSection ? "ซ่อน ▲" : "เปิดดู ▼"}
+              </span>
+            </button>
+            <span className="text-[11px] text-stone-400">โหมดอ่านอย่างเดียว</span>
+          </div>
+
+          {showArchivedSection && (
+            <div className="space-y-2.5 animate-in fade-in duration-150">
+              {archivedRooms.map((r) => {
+                const isOwner = Boolean(r.ownerUid && currentUid && r.ownerUid === currentUid);
+                const dateStr = r.createdAt
+                  ? new Date(r.createdAt).toLocaleDateString("th-TH", {
+                      day: "numeric",
+                      month: "short",
+                      year: "2-digit",
+                    })
+                  : "";
+                const archivedDateStr = r.archivedAt
+                  ? new Date(r.archivedAt).toLocaleDateString("th-TH", {
+                      day: "numeric",
+                      month: "short",
+                      year: "2-digit",
+                    })
+                  : null;
+
+                return (
+                  <div
+                    key={r.id}
+                    className="card flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-3.5 !p-3.5 sm:!p-4 bg-stone-50/70 border-stone-200/90 hover:bg-white transition-all"
+                  >
+                    <Link
+                      href={`/t/${r.id}`}
+                      className="flex items-start sm:items-center gap-3 sm:gap-3.5 min-w-0 flex-1 cursor-pointer"
+                    >
+                      <span className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-stone-100 border border-stone-200 text-2xl mt-0.5 sm:mt-0 opacity-80">
+                        {r.emoji}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                          <h3 className="line-clamp-2 sm:line-clamp-1 text-sm font-bold text-stone-700 break-words leading-snug">
+                            {r.title}
+                          </h3>
+                          <span className="shrink-0 rounded-full bg-stone-200 px-2 py-0.5 text-[10px] font-semibold text-stone-600 border border-stone-300/60">
+                            📦 จัดเก็บแล้ว
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-stone-400 mt-1 sm:mt-0.5">
+                          <span className="font-mono text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded text-[11px]">
+                            #{r.id}
+                          </span>
+                          {archivedDateStr ? (
+                            <span className="text-[11px]">จัดเก็บเมื่อ {archivedDateStr}</span>
+                          ) : dateStr ? (
+                            <span className="text-[11px]">สร้างเมื่อ {dateStr}</span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </Link>
+
+                    <div className="flex items-center gap-2 pt-2 border-t border-stone-100 sm:border-t-0 sm:pt-0 sm:shrink-0">
+                      <Link
+                        href={`/t/${r.id}`}
+                        className="flex-1 sm:flex-initial flex items-center justify-center gap-1 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 px-3 py-2 text-xs font-semibold transition-all min-h-[44px] sm:min-h-[36px]"
+                      >
+                        <span>ดูข้อมูล</span>
+                        <span>→</span>
+                      </Link>
+
+                      {isOwner && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await restoreRoom(r.id);
+                            } catch (err) {
+                              alert(err instanceof Error ? err.message : "กู้คืนทริปไม่สำเร็จ");
+                            }
+                          }}
+                          className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 text-xs font-bold transition-all shadow-xs min-h-[44px] sm:min-h-[36px] cursor-pointer active:scale-98"
+                        >
+                          <span>↩️ กู้คืนทริป</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* CREATE ROOM CARD */}
       <section className="space-y-3 pt-2">
@@ -265,12 +398,12 @@ export default function Home() {
         </form>
       </section>
 
-      {/* Delete Trip Confirmation Modal */}
-      <DeleteTripModal
-        roomId={deleteTarget?.id ?? null}
-        roomTitle={deleteTarget?.title}
-        roomEmoji={deleteTarget?.emoji}
-        onClose={() => setDeleteTarget(null)}
+      {/* Archive Trip Confirmation Modal */}
+      <ArchiveTripModal
+        roomId={archiveTarget?.id ?? null}
+        roomTitle={archiveTarget?.title}
+        roomEmoji={archiveTarget?.emoji}
+        onClose={() => setArchiveTarget(null)}
       />
     </main>
   );

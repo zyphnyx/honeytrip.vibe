@@ -1,0 +1,86 @@
+rules_version = '2';
+
+// ==============================================================================
+// 🚨 HONEYTRIP EMERGENCY DATA PROTECTION RULES (STAGE A)
+// ==============================================================================
+// วัตถุประสงค์:
+// สกัดกั้นการลบข้อมูลทุกรูปแบบทันที ป้องกันไม่ให้ Browser Client เก่าที่ยังมี
+// ฟังก์ชัน deleteRoom() แบบเดิมทำการลบห้องทริปหรือกวาดล้าง Subcollections ได้
+//
+// ข้อแนะนำ:
+// เผยแพร่ (Publish) หน้านี้บน Firebase Console ในขั้นตอนฉุกเฉิน หากต้องการหยุดความเสี่ยง
+// ก่อนที่จะ Deploy โค้ดเวอร์ชันใหม่ขึ้นระบบอย่างสมบูรณ์
+// ==============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    match /rooms/{roomId} {
+      // 1. อ่านได้เฉพาะรายห้อง (ห้าม list ค้นหาห้องคนอื่น)
+      allow read: if signedIn();
+
+      // 2. อนุญาตสร้างห้องใหม่ได้ทั้งแบบเดิมและแบบใหม่ที่มี ownerUid
+      allow create: if signedIn()
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 300
+        && request.resource.data.emoji is string
+        && request.resource.data.emoji.size() <= 32
+        && request.resource.data.createdAt is number;
+
+      // 3. ห้ามแก้ไขห้องทริปหลักโดยเด็ดขาดในระยะฉุกเฉิน
+      allow update: if false;
+
+      // 4. 🛑 ห้ามลบห้องทริปถาวรจาก Client SDK ทุกกรณี!
+      allow delete: if false;
+
+      // --- Subcollections: ปิดการลบทั้งหมดฉุกเฉิน ป้องกัน Cascade Delete จาก client เก่า ---
+      match /members/{memberId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn() && request.auth.uid == memberId;
+        allow delete: if false; // ฉุกเฉิน: ห้ามลบสมาชิก
+      }
+
+      match /places/{placeId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn();
+        allow delete: if false; // ฉุกเฉิน: ห้ามลบสถานที่
+      }
+
+      match /votes/{voteUid} {
+        allow read: if signedIn();
+        allow create, update: if signedIn() && request.auth.uid == voteUid;
+        allow delete: if false; // ฉุกเฉิน: ห้ามลบผลโหวต
+      }
+
+      match /settings/{settingId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn();
+        allow delete: if false; // ฉุกเฉิน: ห้ามลบการตั้งค่า
+      }
+
+      match /plan/{planDocId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn();
+        allow delete: if false; // ฉุกเฉิน: ห้ามลบแผน
+      }
+
+      match /activities/{activityId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn();
+        allow delete: if false; // ฉุกเฉิน: ห้ามลบกิจกรรม
+      }
+
+      match /activityComments/{commentId} {
+        allow read: if signedIn();
+        allow create: if signedIn();
+        allow update: if false;
+        allow delete: if false; // ฉุกเฉิน: ห้ามลบคอมเมนต์
+      }
+    }
+  }
+}

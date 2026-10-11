@@ -1,8 +1,16 @@
 rules_version = '2';
 
-// HoneyTrip — ไม่มี login: ใช้ Firebase Anonymous Auth + รหัสห้องที่เดายาก
-// - ห้ามอ่านทั้ง collection rooms (list) → ไล่หาห้องคนอื่นไม่ได้
-// - สมาชิกแก้/ลบได้เฉพาะ doc ของตัวเอง (doc id == auth.uid)
+// ==============================================================================
+// 🍯 HoneyTrip — Data Protection & Trip Archive Security Rules
+// ==============================================================================
+// 1. ไม่มี Login บังคับ: ใช้ Firebase Anonymous Auth + รหัสห้องที่เดายาก
+// 2. ห้ามลบห้องทริปถาวรผ่าน Client SDK ทุกกรณี (Data Preservation Invariant)
+// 3. อนุญาตให้เฉพาะผู้ดูแลทริป (ownerUid) แก้ไขสถานะจัดเก็บทริป (archived) ได้เท่านั้น
+// 4. สมาชิกไม่สามารถแย่งสิทธิ์เจ้าของห้องเก่า (Legacy Rooms) ได้
+// 5. เมื่อทริปอยู่ในสถานะจัดเก็บ (archived == true) ข้อมูลทั้งหมดจะถูกล็อกเป็นอ่านอย่างเดียว (Read-only)
+// 6. ใน Subcollections สมาชิกสามารถลบได้เฉพาะข้อมูลของตนเอง ป้องกันการกวาดล้างข้อมูล
+// ==============================================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -10,22 +18,63 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function getRoomData(rId) {
+      return get(/databases/$(database)/documents/rooms/$(rId)).data;
+    }
+
+    function isRoomArchived(rId) {
+      let rData = getRoomData(rId);
+      return ('archived' in rData) && rData.archived == true;
+    }
+
+    function isRoomOwner(rId) {
+      let rData = getRoomData(rId);
+      return ('ownerUid' in rData) && rData.ownerUid == request.auth.uid;
+    }
+
     match /rooms/{roomId} {
+      // อ่านได้เฉพาะรายห้อง (ห้าม list ค้นหาห้องของคนอื่น)
       allow read: if signedIn();
+
+      // สร้างห้องใหม่: ต้องผูก ownerUid ตรงกับ Anonymous UID ของผู้สร้างเสมอ
       allow create: if signedIn()
-        && request.resource.data.keys().hasOnly(['title', 'emoji', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['title', 'emoji', 'createdAt', 'ownerUid', 'archived', 'archivedAt', 'archivedBy'])
         && request.resource.data.title is string
         && request.resource.data.title.size() > 0
-        && request.resource.data.title.size() <= 60
+        && request.resource.data.title.size() <= 300
         && request.resource.data.emoji is string
-        && request.resource.data.emoji.size() <= 8
-        && request.resource.data.createdAt is number;
-      allow update: if false;
-      allow delete: if signedIn();
+        && request.resource.data.emoji.size() <= 32
+        && request.resource.data.createdAt is number
+        && (!('ownerUid' in request.resource.data) || request.resource.data.ownerUid == request.auth.uid);
 
+      // แก้ไขห้อง: อนุญาตเฉพาะผู้ดูแลทริป และแก้ไขได้เฉพาะฟิลด์การจัดเก็บ (Archive / Restore) เท่านั้น
+      // ห้ามเปลี่ยน ownerUid, title, emoji หรือ createdAt โดยเด็ดขาด
+      allow update: if signedIn()
+        && ('ownerUid' in resource.data)
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['archived', 'archivedAt', 'archivedBy'])
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.title == resource.data.title
+        && request.resource.data.emoji == resource.data.emoji
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.archived is bool
+        && (
+          (request.resource.data.archived == true && request.resource.data.archivedBy == request.auth.uid) ||
+          (request.resource.data.archived == false && request.resource.data.archivedAt == null && request.resource.data.archivedBy == null)
+        );
+
+      // 🛑 ห้ามลบห้องทริปถาวรผ่าน Client SDK ทุกกรณี! (ป้องกันการสูญหายของข้อมูล)
+      allow delete: if false;
+
+      // --------------------------------------------------------------------------
+      // SUBCOLLECTIONS (ทั้งหมดต้องไม่อยู่ในสถานะจัดเก็บ จึงจะแก้ไขได้)
+      // --------------------------------------------------------------------------
+
+      // สมาชิกในห้อง
       match /members/{memberId} {
         allow read: if signedIn();
         allow create, update: if signedIn()
+          && !isRoomArchived(roomId)
           && request.auth.uid == memberId
           && request.resource.data.keys().hasOnly([
             'name', 'emoji', 'status', 'durationMin', 'durationMax',
@@ -34,7 +83,7 @@ service cloud.firestore {
           ])
           && request.resource.data.name is string
           && request.resource.data.name.size() > 0
-          && request.resource.data.name.size() <= 30
+          && request.resource.data.name.size() <= 150
           && request.resource.data.status in ['going', 'maybe', 'out']
           && request.resource.data.transport in ['own_car', 'need_ride', 'any']
           && request.resource.data.durationMin is number
@@ -45,70 +94,97 @@ service cloud.firestore {
           && request.resource.data.availableDates.size() <= 366
           && request.resource.data.prefs is list
           && request.resource.data.prefs.size() <= 20
-          && request.resource.data.note.size() <= 200
-          && request.resource.data.origin.size() <= 40;
-        allow delete: if signedIn();
+          && request.resource.data.note.size() <= 1000
+          && request.resource.data.origin.size() <= 200;
+
+        // ลบได้เฉพาะโปรไฟล์ของตนเองเท่านั้น (ห้ามลบสมาชิกคนอื่น)
+        allow delete: if signedIn()
+          && !isRoomArchived(roomId)
+          && request.auth.uid == memberId;
       }
 
       // สถานที่เสนอ (ที่พัก / ที่เที่ยว)
       match /places/{placeId} {
         allow read: if signedIn();
         allow create, update: if signedIn()
+          && !isRoomArchived(roomId)
           && request.resource.data.name is string
           && request.resource.data.name.size() > 0
-          && request.resource.data.name.size() <= 100
+          && request.resource.data.name.size() <= 500
           && request.resource.data.category in ['stay', 'attraction']
           && request.resource.data.createdBy is string;
-        allow delete: if signedIn();
+
+        // ลบได้เฉพาะผู้เสนอสถานที่ หรือผู้ดูแลทริป
+        allow delete: if signedIn()
+          && !isRoomArchived(roomId)
+          && (request.auth.uid == resource.data.createdBy || isRoomOwner(roomId));
       }
 
       // การโหวต (uid ของผู้โหวต)
       match /votes/{voteUid} {
         allow read: if signedIn();
         allow create, update: if signedIn()
+          && !isRoomArchived(roomId)
           && request.auth.uid == voteUid;
-        allow delete: if signedIn();
+
+        // ลบได้เฉพาะการโหวตของตนเองเท่านั้น
+        allow delete: if signedIn()
+          && !isRoomArchived(roomId)
+          && request.auth.uid == voteUid;
       }
 
       // การตั้งค่าห้อง เช่น จุดหมายปลายทาง (destination)
       match /settings/{settingId} {
         allow read: if signedIn();
-        allow create, update: if signedIn();
-        allow delete: if signedIn();
+        allow create, update: if signedIn()
+          && !isRoomArchived(roomId);
+        allow delete: if false; // ห้ามลบเอกสารการตั้งค่า
       }
 
       // ข้อมูลการวางแผนทริป เช่น วันเดินทางที่คอนเฟิร์ม (rooms/{roomId}/plan/meta)
       match /plan/{planDocId} {
         allow read: if signedIn();
         allow create, update: if signedIn()
+          && !isRoomArchived(roomId)
           && request.resource.data.timezone is string;
-        allow delete: if signedIn();
+        allow delete: if false; // ห้ามลบข้อมูลการวางแผน
       }
 
       // กิจกรรมในทริป (Social Feed & Timeline)
       match /activities/{activityId} {
         allow read: if signedIn();
         allow create, update: if signedIn()
+          && !isRoomArchived(roomId)
           && request.resource.data.title is string
           && request.resource.data.title.size() > 0
-          && request.resource.data.title.size() <= 120
+          && request.resource.data.title.size() <= 500
           && request.resource.data.category in ['attraction', 'food', 'stay', 'transport', 'other']
           && request.resource.data.status in ['proposed', 'confirmed', 'completed', 'cancelled']
           && request.resource.data.createdBy is string;
-        allow delete: if signedIn();
+
+        // ลบได้เฉพาะผู้สร้างกิจกรรม หรือผู้ดูแลทริป
+        allow delete: if signedIn()
+          && !isRoomArchived(roomId)
+          && (request.auth.uid == resource.data.createdBy || isRoomOwner(roomId));
       }
 
       // ความคิดเห็นในกิจกรรม (สร้างได้ ลบได้ ห้ามแก้ไข)
       match /activityComments/{commentId} {
         allow read: if signedIn();
         allow create: if signedIn()
+          && !isRoomArchived(roomId)
           && request.resource.data.body is string
           && request.resource.data.body.size() > 0
-          && request.resource.data.body.size() <= 500
+          && request.resource.data.body.size() <= 2000
           && request.resource.data.activityId is string
-          && request.resource.data.authorUid is string;
-        allow update: if false;
-        allow delete: if signedIn();
+          && request.resource.data.authorUid is string
+          && request.auth.uid == request.resource.data.authorUid;
+        allow update: if false; // ห้ามแก้ไขข้อความคอมเมนต์
+
+        // ลบได้เฉพาะเจ้าของคอมเมนต์ หรือผู้ดูแลทริป
+        allow delete: if signedIn()
+          && !isRoomArchived(roomId)
+          && (request.auth.uid == resource.data.authorUid || isRoomOwner(roomId));
       }
     }
   }

@@ -67,7 +67,12 @@ export function TripPlanner({
     return list.sort((a, b) => b.createdAt - a.createdAt);
   }, [activities, feedFilter]);
 
+  const proposedCount = budget.proposedCount;
+  const confirmedCount = budget.confirmedCount + budget.completedCount;
+  const isArchived = Boolean(room?.archived);
+
   const handleOpenAdd = (mode: "proposed" | "confirmed" = "proposed", date?: string) => {
+    if (isArchived) return;
     setEditingActivity(null);
     setFormDefaultMode(mode);
     setFormDefaultDate(date);
@@ -75,12 +80,14 @@ export function TripPlanner({
   };
 
   const handleEdit = (act: Activity) => {
+    if (isArchived) return;
     setEditingActivity(act);
     setFormDefaultMode(act.status === "proposed" ? "proposed" : "confirmed");
     setFormOpen(true);
   };
 
   const handleDelete = async (actId: string) => {
+    if (isArchived) return;
     if (!confirm("คุณต้องการลบกิจกรรมนี้ออกจากทริปใช่หรือไม่?")) return;
     try {
       await onDeleteActivity(actId);
@@ -93,6 +100,7 @@ export function TripPlanner({
   };
 
   const handleConfirmSchedule = async (act: Activity) => {
+    if (isArchived) return;
     // หากมีวันและเวลาเริ่มครบแล้ว สามารถยืนยันได้ทันที
     if (act.date && act.startTime) {
       await onUpdateStatus(act.id, "confirmed");
@@ -104,9 +112,6 @@ export function TripPlanner({
     }
   };
 
-  const proposedCount = budget.proposedCount;
-  const confirmedCount = budget.confirmedCount + budget.completedCount;
-
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -116,8 +121,18 @@ export function TripPlanner({
         meta={meta}
         activities={activities}
         members={members}
-        onOpenDateSetup={() => setShowDateSetup(true)}
+        onOpenDateSetup={() => {
+          if (!isArchived) setShowDateSetup(true);
+        }}
       />
+
+      {/* Archived Notice */}
+      {isArchived && (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-900 font-semibold flex items-center gap-2">
+          <span className="text-lg">🔒</span>
+          <span>ทริปนี้ถูกจัดเก็บแล้ว (อ่านอย่างเดียว) กรุณากู้คืนทริปจากหน้าหลักก่อนเพิ่มหรือแก้ไขกิจกรรม</span>
+        </div>
+      )}
 
       {/* Main Mode Tabs Switcher */}
       <div className="flex items-center justify-between gap-2">
@@ -165,15 +180,17 @@ export function TripPlanner({
           </button>
         </div>
 
-        {/* Global Add Button */}
-        <button
-          type="button"
-          onClick={() => handleOpenAdd(activeTab === "timeline" ? "confirmed" : "proposed")}
-          className="btn-primary !py-2 !px-3 !text-xs font-bold shadow-xs shrink-0 flex items-center gap-1 cursor-pointer"
-        >
-          <span>+</span>
-          <span>{activeTab === "timeline" ? "เพิ่มกิจกรรม" : "เสนอไอเดีย"}</span>
-        </button>
+        {/* Global Add Button (Hidden if archived) */}
+        {!isArchived && (
+          <button
+            type="button"
+            onClick={() => handleOpenAdd(activeTab === "timeline" ? "confirmed" : "proposed")}
+            className="btn-primary !py-2 !px-3 !text-xs font-bold shadow-xs shrink-0 flex items-center gap-1 cursor-pointer"
+          >
+            <span>+</span>
+            <span>{activeTab === "timeline" ? "เพิ่มกิจกรรม" : "เสนอไอเดีย"}</span>
+          </button>
+        )}
       </div>
 
       {/* View Content */}
