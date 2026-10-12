@@ -131,6 +131,7 @@ function PaymentUploadModalContent({
                 receivingAccount: settings.receivingAccount,
                 promptPayId: settings.promptPayId,
                 receivingName: settings.receivingName,
+                autoVerifyEnabled: settings.autoVerifyEnabled,
               }
             : undefined,
           mockMode: false,

@@ -26,18 +26,28 @@ export async function POST(request: Request) {
       );
     }
 
-    const apiKey = process.env.SLIPOK_API_KEY;
-    const branchId = process.env.SLIPOK_BRANCH_ID;
-    const autoVerifyEnabled = process.env.SLIPOK_AUTOVERIFY_ENABLED === "true";
+    const apiKey = process.env.SLIPOK_API_KEY?.trim();
+    const branchId = process.env.SLIPOK_BRANCH_ID?.trim();
+    const serverAutoVerifyEnabled = process.env.SLIPOK_AUTOVERIFY_ENABLED?.trim() === "true";
+
+    // If the room explicitly turned off SlipOK in settings, respect room setting
+    const roomAutoVerifyEnabled =
+      expectedSettings?.autoVerifyEnabled !== undefined
+        ? Boolean(expectedSettings.autoVerifyEnabled)
+        : true;
+
+    const autoVerifyActive = serverAutoVerifyEnabled && roomAutoVerifyEnabled;
 
     // --- MOCK MODE (For Local Dev, Automated Tests, and Zero Cost) ---
-    if (mockMode || !apiKey || !branchId || !autoVerifyEnabled) {
+    if (mockMode || !apiKey || !branchId || !autoVerifyActive) {
       // If auto-verify is disabled or missing credentials
-      if (!autoVerifyEnabled && !mockMode) {
+      if (!autoVerifyActive && !mockMode) {
         return NextResponse.json({
           status: "manual_review",
           autoVerifyEnabled: false,
-          message: "ระบบตรวจสลิปอัตโนมัติ (SlipOK) ถูกปิดใช้งานอยู่ ส่งเข้าคิวให้ผู้ดูแลตรวจสลิปด้วยตนเอง",
+          message: !roomAutoVerifyEnabled
+            ? "ระบบตรวจสลิปอัตโนมัติ (SlipOK) ถูกปิดใช้งานอยู่ในการตั้งค่าทริป ส่งเข้าคิวให้ผู้ดูแลตรวจสลิปด้วยตนเอง"
+            : "ระบบตรวจสลิปอัตโนมัติ (SlipOK) ถูกปิดใช้งานอยู่ ส่งเข้าคิวให้ผู้ดูแลตรวจสลิปด้วยตนเอง",
         });
       }
 

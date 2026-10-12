@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const apiKey = process.env.SLIPOK_API_KEY;
-    const branchId = process.env.SLIPOK_BRANCH_ID;
-    const autoVerifyEnabled = process.env.SLIPOK_AUTOVERIFY_ENABLED === "true";
+    const apiKey = process.env.SLIPOK_API_KEY?.trim();
+    const branchId = process.env.SLIPOK_BRANCH_ID?.trim();
+    const autoVerifyEnabled = process.env.SLIPOK_AUTOVERIFY_ENABLED?.trim() === "true";
 
     if (!apiKey || !branchId) {
       return NextResponse.json({
