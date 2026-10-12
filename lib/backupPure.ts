@@ -69,5 +69,11 @@ export function validateBackupStructure(
     activityComments: data.activityComments.length,
   };
 
+  if (Array.isArray(data.financeSettings)) counts.financeSettings = data.financeSettings.length;
+  if (Array.isArray(data.dues)) counts.dues = data.dues.length;
+  if (Array.isArray(data.payments)) counts.payments = data.payments.length;
+  if (Array.isArray(data.expenses)) counts.expenses = data.expenses.length;
+  if (Array.isArray(data.ledgerEntries)) counts.ledgerEntries = data.ledgerEntries.length;
+
   return { valid: true, counts };
 }

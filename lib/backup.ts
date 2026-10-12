@@ -36,6 +36,11 @@ export async function exportTripBackup(roomId: string): Promise<TripBackup> {
     planSnap,
     activitiesSnap,
     activityCommentsSnap,
+    financeSettingsSnap,
+    duesSnap,
+    paymentsSnap,
+    expensesSnap,
+    ledgerEntriesSnap,
   ] = await Promise.all([
     getDocs(collection(db, "rooms", roomId, "members")),
     getDocs(collection(db, "rooms", roomId, "places")),
@@ -44,6 +49,11 @@ export async function exportTripBackup(roomId: string): Promise<TripBackup> {
     getDocs(collection(db, "rooms", roomId, "plan")),
     getDocs(collection(db, "rooms", roomId, "activities")),
     getDocs(collection(db, "rooms", roomId, "activityComments")),
+    getDocs(collection(db, "rooms", roomId, "financeSettings")),
+    getDocs(collection(db, "rooms", roomId, "dues")),
+    getDocs(collection(db, "rooms", roomId, "payments")),
+    getDocs(collection(db, "rooms", roomId, "expenses")),
+    getDocs(collection(db, "rooms", roomId, "ledgerEntries")),
   ]);
 
   const members = membersSnap.docs.map((d) => ({
@@ -74,6 +84,26 @@ export async function exportTripBackup(roomId: string): Promise<TripBackup> {
     ...(d.data() as Omit<ActivityComment, "id">),
     id: d.id,
   }));
+  const financeSettings = financeSettingsSnap.docs.map((d) => ({
+    ...(d.data() as Record<string, unknown>),
+    id: d.id,
+  }));
+  const dues = duesSnap.docs.map((d) => ({
+    ...(d.data() as Record<string, unknown>),
+    id: d.id,
+  }));
+  const payments = paymentsSnap.docs.map((d) => ({
+    ...(d.data() as Record<string, unknown>),
+    id: d.id,
+  }));
+  const expenses = expensesSnap.docs.map((d) => ({
+    ...(d.data() as Record<string, unknown>),
+    id: d.id,
+  }));
+  const ledgerEntries = ledgerEntriesSnap.docs.map((d) => ({
+    ...(d.data() as Record<string, unknown>),
+    id: d.id,
+  }));
 
   const counts: TripBackupCounts = {
     members: members.length,
@@ -83,6 +113,11 @@ export async function exportTripBackup(roomId: string): Promise<TripBackup> {
     plan: plan.length,
     activities: activities.length,
     activityComments: activityComments.length,
+    financeSettings: financeSettings.length,
+    dues: dues.length,
+    payments: payments.length,
+    expenses: expenses.length,
+    ledgerEntries: ledgerEntries.length,
   };
 
   const backup: TripBackup = {
@@ -99,6 +134,11 @@ export async function exportTripBackup(roomId: string): Promise<TripBackup> {
       plan,
       activities,
       activityComments,
+      financeSettings,
+      dues,
+      payments,
+      expenses,
+      ledgerEntries,
     },
     counts,
   };

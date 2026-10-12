@@ -205,6 +205,11 @@ export interface TripBackupCounts {
   plan: number;
   activities: number;
   activityComments: number;
+  financeSettings?: number;
+  dues?: number;
+  payments?: number;
+  expenses?: number;
+  ledgerEntries?: number;
 }
 
 export interface TripBackup {
@@ -221,6 +226,11 @@ export interface TripBackup {
     plan: Array<{ id: string; [key: string]: unknown }>;
     activities: Activity[];
     activityComments: ActivityComment[];
+    financeSettings?: Array<{ id: string; [key: string]: unknown }>;
+    dues?: Array<{ id: string; [key: string]: unknown }>;
+    payments?: Array<{ id: string; [key: string]: unknown }>;
+    expenses?: Array<{ id: string; [key: string]: unknown }>;
+    ledgerEntries?: Array<{ id: string; [key: string]: unknown }>;
   };
   counts: TripBackupCounts;
 }

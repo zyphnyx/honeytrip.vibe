@@ -186,6 +186,71 @@ service cloud.firestore {
           && !isRoomArchived(roomId)
           && (request.auth.uid == resource.data.authorUid || isRoomOwner(roomId));
       }
+
+      // --------------------------------------------------------------------------
+      // 💸 FINANCE SUBCOLLECTIONS (การเงินทริป & SlipOK)
+      // --------------------------------------------------------------------------
+
+      // การตั้งค่าบัญชีและการเงินทริป (financeSettings/main)
+      match /financeSettings/{settingDocId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn()
+          && !isRoomArchived(roomId);
+        allow delete: if false; // ห้ามลบเอกสารการตั้งค่าการเงิน
+      }
+
+      // งวดเรียกเก็บเงิน (Dues / Payment Requests)
+      match /dues/{dueId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn()
+          && !isRoomArchived(roomId)
+          && request.resource.data.totalAmountSatang is number
+          && request.resource.data.totalAmountSatang >= 0
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0;
+        allow delete: if signedIn()
+          && !isRoomArchived(roomId)
+          && (request.auth.uid == resource.data.createdBy || isRoomOwner(roomId));
+      }
+
+      // รายการแจ้งโอนเงินของสมาชิก (Payments)
+      match /payments/{paymentId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && !isRoomArchived(roomId)
+          && request.resource.data.amountSatang is number
+          && request.resource.data.amountSatang > 0
+          && request.auth.uid == request.resource.data.submittedBy;
+        allow update: if signedIn()
+          && !isRoomArchived(roomId);
+        allow delete: if false; // ห้ามลบข้อมูลการแจ้งโอนเพื่อรักษา Audit Trail
+      }
+
+      // รายจ่ายของทริปที่จ่ายให้ร้านค้า/ผู้ให้บริการ (Expenses)
+      match /expenses/{expenseId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn()
+          && !isRoomArchived(roomId)
+          && request.resource.data.totalCostSatang is number
+          && request.resource.data.totalCostSatang >= 0
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0;
+        allow delete: if signedIn()
+          && !isRoomArchived(roomId)
+          && (request.auth.uid == resource.data.createdBy || isRoomOwner(roomId));
+      }
+
+      // สมุดบัญชีกองกลาง (Ledger Entries — Append-Only ห้ามแก้ไขหรือลบ)
+      match /ledgerEntries/{ledgerId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && !isRoomArchived(roomId)
+          && request.resource.data.amountSatang is number
+          && request.resource.data.amountSatang >= 0
+          && request.resource.data.type in ['income', 'expense', 'reversal'];
+        allow update: if false; // Append-Only: ห้ามแก้ไขรายการในสมุดบัญชี
+        allow delete: if false; // Append-Only: ห้ามลบรายการในสมุดบัญชี
+      }
     }
   }
 }

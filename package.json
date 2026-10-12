@@ -7,9 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test tests/places.test.mjs tests/activities.test.mjs tests/protection.test.mjs"
+    "test": "node --experimental-strip-types --test tests/places.test.mjs tests/activities.test.mjs tests/protection.test.mjs tests/finance.test.mjs"
   },
   "dependencies": {
+    "@zxing/library": "^0.21.3",
     "firebase": "^12.19.0",
     "next": "16.4.0",
     "react": "19.3.0",

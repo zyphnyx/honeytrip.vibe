@@ -12,6 +12,8 @@ import { TripPoolCard } from "./TripPoolCard";
 import { TripPoolModal } from "./TripPoolModal";
 import { PlanSummaryCard } from "./plan/PlanSummaryCard";
 import { useActivities } from "@/lib/useActivities";
+import { FinanceSummaryCard } from "./finance/FinanceSummaryCard";
+import { useFinance } from "@/lib/useFinance";
 
 function MemberAvatar({
   m,
@@ -88,6 +90,7 @@ export function Dashboard({
 }) {
   const stats = useMemo(() => computeStats(members), [members]);
   const planner = useActivities(roomId, members, uid);
+  const finance = useFinance(roomId, room, members, uid);
   const [copied, setCopied] = useState<"link" | "summary" | null>(null);
   const [inspectMember, setInspectMember] = useState<Member | null>(null);
   const [showPoolModal, setShowPoolModal] = useState(false);
@@ -153,6 +156,7 @@ export function Dashboard({
 
       {/* Trip Pool Card Banner */}
       <TripPoolCard
+        roomId={roomId}
         qrUrl="/qr/mktamzgvgb.jpg"
         accountName="น.ส. กานต์พิชชา สุริยนต์"
         bankName="MAKE by KBank"
@@ -165,6 +169,13 @@ export function Dashboard({
         meta={planner.meta}
         activities={planner.activities}
         budget={planner.budget}
+      />
+
+      {/* HoneyTrip Finance Summary Card */}
+      <FinanceSummaryCard
+        roomId={roomId}
+        summary={finance.summary}
+        isManager={finance.isManager}
       />
 
 
@@ -480,6 +491,7 @@ export function Dashboard({
       <TripPoolModal
         isOpen={showPoolModal}
         onClose={() => setShowPoolModal(false)}
+        roomId={roomId}
         qrUrl="/qr/mktamzgvgb.jpg"
         accountName="น.ส. กานต์พิชชา สุริยนต์"
         bankName="MAKE by KBank (PromptPay)"

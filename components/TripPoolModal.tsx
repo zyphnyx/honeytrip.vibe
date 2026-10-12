@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Tooltip } from "./Tooltip";
 
@@ -12,6 +13,7 @@ import { Tooltip } from "./Tooltip";
 interface TripPoolModalProps {
   isOpen: boolean;
   onClose: () => void;
+  roomId?: string;
   qrUrl?: string;
   accountName?: string;
   bankName?: string;
@@ -21,6 +23,7 @@ interface TripPoolModalProps {
 export function TripPoolModal({
   isOpen,
   onClose,
+  roomId,
   qrUrl = "/qr/mktamzgvgb.jpg",
   accountName = "น.ส. กานต์พิชชา สุริยนต์",
   bankName = "MAKE by KBank (PromptPay)",
@@ -146,6 +149,19 @@ export function TripPoolModal({
             </a>
           </Tooltip>
         </div>
+
+        {roomId && (
+          <div className="mt-3">
+            <Link
+              href={`/t/${roomId}/finance`}
+              onClick={onClose}
+              className="w-full flex items-center justify-center gap-1.5 rounded-2xl bg-amber-50 border border-amber-200/80 py-2.5 px-3 text-xs font-bold text-amber-900 hover:bg-amber-100 active:scale-95 transition-all text-center"
+            >
+              <span>💸</span>
+              <span>เปิดระบบจัดการการเงินทริป & ตรวจสลิป →</span>
+            </Link>
+          </div>
+        )}
 
         <p className="mt-3 text-center text-[10px] text-stone-400">
           💡 สแกนผ่านแอปธนาคารใดก็ได้ (รองรับ PromptPay ทุกธนาคาร)

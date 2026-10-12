@@ -11,6 +11,7 @@ import { TripPoolModal } from "./TripPoolModal";
  */
 
 interface TripPoolCardProps {
+  roomId?: string;
   qrUrl?: string;
   accountName?: string;
   bankName?: string;
@@ -19,6 +20,7 @@ interface TripPoolCardProps {
 }
 
 export function TripPoolCard({
+  roomId,
   qrUrl = "/qr/mktamzgvgb.jpg",
   accountName = "น.ส. กานต์พิชชา สุริยนต์",
   bankName = "MAKE by KBank",
@@ -84,6 +86,7 @@ export function TripPoolCard({
       <TripPoolModal
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
+        roomId={roomId}
         qrUrl={qrUrl}
         accountName={accountName}
         bankName={`${bankName} (PromptPay)`}
