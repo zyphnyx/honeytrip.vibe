@@ -223,7 +223,9 @@ service cloud.firestore {
           && request.auth.uid == request.resource.data.submittedBy;
         allow update: if signedIn()
           && !isRoomArchived(roomId);
-        allow delete: if false; // ห้ามลบข้อมูลการแจ้งโอนเพื่อรักษา Audit Trail
+        allow delete: if signedIn()
+          && !isRoomArchived(roomId)
+          && (resource.data.status == 'rejected' || isRoomOwner(roomId));
       }
 
       // รายจ่ายของทริปที่จ่ายให้ร้านค้า/ผู้ให้บริการ (Expenses)

@@ -416,6 +416,41 @@ test("Financial security state machine invariants", async (t) => {
       );
     }
   });
+
+  await t.test("deleting a rejected payment preserves zero-credit invariant and does not affect ledger", () => {
+    const rejectedPayment = {
+      id: "pay_rej_1",
+      dueId: "due_1",
+      memberUid: "m1",
+      submittedBy: "m1",
+      amountSatang: 195000,
+      status: "rejected",
+      rejectedReason: "สลิปซ้ำหรือไม่พบยอด",
+      createdAt: 1000,
+      updatedAt: 1200,
+    };
+
+    const summaryWithRejected = computeFinanceSummary({
+      dues: [],
+      payments: [rejectedPayment],
+      expenses: [],
+      ledgerEntries: [],
+      memberUids: ["m1"],
+    });
+
+    const summaryAfterDeletion = computeFinanceSummary({
+      dues: [],
+      payments: [],
+      expenses: [],
+      ledgerEntries: [],
+      memberUids: ["m1"],
+    });
+
+    assert.equal(summaryWithRejected.confirmedFundBalanceSatang, 0);
+    assert.equal(summaryAfterDeletion.confirmedFundBalanceSatang, 0);
+    assert.equal(summaryWithRejected.totalIncomingSatang, 0);
+    assert.equal(summaryAfterDeletion.totalIncomingSatang, 0);
+  });
 });
 
 // ==============================================================================

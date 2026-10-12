@@ -294,6 +294,15 @@ export async function rejectPayment(
 }
 
 /**
+ * Deletes a payment document (e.g. for cleaning up rejected slips)
+ */
+export async function deletePayment(roomId: string, paymentId: string): Promise<void> {
+  await ensureUser();
+  const db = getDb();
+  await deleteDoc(doc(db, "rooms", roomId, "payments", paymentId));
+}
+
+/**
  * Records a vendor expense disbursement
  */
 export async function createExpense(

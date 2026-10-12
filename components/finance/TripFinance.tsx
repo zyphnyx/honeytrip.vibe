@@ -814,6 +814,7 @@ export function TripFinance({
           dues={dues}
           members={members}
           isManager={isManager}
+          currentUid={uid}
         />
       )}
 

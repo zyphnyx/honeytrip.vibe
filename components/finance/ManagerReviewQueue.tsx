@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Due, Payment } from "@/lib/financeTypes";
 import { formatSatang } from "@/lib/financeTypes";
-import { approvePayment, rejectPayment } from "@/lib/finance";
+import { approvePayment, rejectPayment, deletePayment } from "@/lib/finance";
 import { getBankShortName } from "@/lib/slipokAdapter";
 import type { Member } from "@/lib/types";
 
@@ -13,6 +13,7 @@ interface ManagerReviewQueueProps {
   dues: Due[];
   members: Member[];
   isManager: boolean;
+  currentUid?: string;
 }
 
 export default function ManagerReviewQueue({
@@ -21,6 +22,7 @@ export default function ManagerReviewQueue({
   dues,
   members,
   isManager,
+  currentUid,
 }: ManagerReviewQueueProps) {
   const [filter, setFilter] = useState<"pending" | "approved" | "rejected">("pending");
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -78,6 +80,27 @@ export default function ManagerReviewQueue({
     } catch (err: unknown) {
       console.error(err);
       setActionError(err instanceof Error ? err.message : "ปฏิเสธรายการไม่สำเร็จ");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleDeletePayment = async (payment: Payment) => {
+    const canDelete = isManager || (currentUid && payment.submittedBy === currentUid);
+    if (!canDelete) return;
+
+    const confirmed = window.confirm(
+      `ยืนยันการลบรายการแจ้งโอนที่ถูกปฏิเสธนี้ (${formatSatang(payment.amountSatang)}) หรือไม่?`
+    );
+    if (!confirmed) return;
+
+    setProcessingId(payment.id);
+    setActionError(null);
+    try {
+      await deletePayment(roomId, payment.id);
+    } catch (err: unknown) {
+      console.error(err);
+      setActionError(err instanceof Error ? err.message : "ลบรายการไม่สำเร็จ");
     } finally {
       setProcessingId(null);
     }
@@ -325,6 +348,21 @@ export default function ManagerReviewQueue({
                       {processingId === p.id
                         ? "กำลังบันทึก..."
                         : "✓ ตรวจสอบแล้ว อนุมัติเข้ากองกลาง"}
+                    </button>
+                  </div>
+                )}
+
+                {/* Actions Bar for Rejected Payment */}
+                {p.status === "rejected" && (isManager || (currentUid && p.submittedBy === currentUid)) && (
+                  <div className="mt-3 pt-2.5 border-t border-rose-100/80 flex items-center justify-end">
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePayment(p)}
+                      disabled={processingId === p.id}
+                      className="px-3 py-1.5 rounded-xl bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 text-xs font-semibold transition-all shadow-2xs active:scale-95 flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      title="ลบรายการสลิปที่ถูกปฏิเสธนี้"
+                    >
+                      <span>🗑️</span> {processingId === p.id ? "กำลังลบ..." : "ลบรายการนี้"}
                     </button>
                   </div>
                 )}
