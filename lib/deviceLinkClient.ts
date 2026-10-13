@@ -29,7 +29,12 @@ export async function linkApi<T>(action: string, body: object, expectedUid?: str
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify(body), signal: AbortSignal.timeout(20_000),
   });
-  const data = await response.json();
-  if (!response.ok) throw new PairingClientError(data.error || "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่", response.status);
-  return data as T;
+  let data: ({ error?: string } & T) | null = null;
+  try {
+    data = await response.json();
+  } catch {
+    throw new PairingClientError("เซิร์ฟเวอร์ขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง", response.status || 500);
+  }
+  if (!response.ok || !data) throw new PairingClientError(data?.error || "เชื่อมต่อไม่สำเร็จ กรุณาลองใหม่", response.status);
+  return data;
 }
