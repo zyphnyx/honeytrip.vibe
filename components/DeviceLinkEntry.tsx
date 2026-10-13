@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Suspense } from "react";
 import { Tooltip } from "@/components/Tooltip";
 
-export function DeviceLinkEntry({ returnTo }: { returnTo?: string }) {
+function DeviceLinkEntryInner({ returnTo }: { returnTo?: string }) {
   const pathname = usePathname();
   if (pathname?.startsWith("/device-link")) {
     return null;
@@ -25,5 +26,13 @@ export function DeviceLinkEntry({ returnTo }: { returnTo?: string }) {
         <span>เชื่อมต่ออุปกรณ์</span>
       </Link>
     </Tooltip>
+  );
+}
+
+export function DeviceLinkEntry({ returnTo }: { returnTo?: string }) {
+  return (
+    <Suspense fallback={null}>
+      <DeviceLinkEntryInner returnTo={returnTo} />
+    </Suspense>
   );
 }
