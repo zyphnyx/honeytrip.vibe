@@ -6,7 +6,7 @@ import {
   setDoc,
   type Unsubscribe,
 } from "firebase/firestore";
-import { ensureUser, getDb } from "./firebase";
+import { ensureWritableUser, getDb } from "./firebase";
 import type {
   Place,
   PlaceInput,
@@ -92,7 +92,7 @@ export async function savePlace(
   input: PlaceInput,
   placeId?: string,
 ): Promise<string> {
-  await ensureUser();
+  await ensureWritableUser();
   const db = getDb();
   const now = Date.now();
   const targetId = placeId || doc(collection(db, "rooms", roomId, "places")).id;
@@ -108,7 +108,7 @@ export async function savePlace(
 }
 
 export async function deletePlace(roomId: string, placeId: string): Promise<void> {
-  await ensureUser();
+  await ensureWritableUser();
   const db = getDb();
   await deleteDoc(doc(db, "rooms", roomId, "places", placeId));
 }
@@ -117,7 +117,7 @@ export async function updatePlaceSettings(
   roomId: string,
   settings: Partial<PlaceSettings>,
 ): Promise<void> {
-  await ensureUser();
+  await ensureWritableUser();
   const db = getDb();
   const payload = sanitizeFirestorePayload({
     ...settings,
@@ -132,7 +132,7 @@ export async function toggleStayVote(
   stayId: string,
   currentStayIds: string[],
 ): Promise<void> {
-  await ensureUser();
+  await ensureWritableUser();
   const db = getDb();
   const exists = currentStayIds.includes(stayId);
   let newIds: string[];
@@ -165,7 +165,7 @@ export async function castStayVote(
   uid: string,
   stayId: string | null,
 ): Promise<void> {
-  await ensureUser();
+  await ensureWritableUser();
   const db = getDb();
   const voteRef = doc(db, "rooms", roomId, "votes", uid);
   await setDoc(
@@ -186,7 +186,7 @@ export async function toggleAttractionVote(
   attractionId: string,
   currentAttractionIds: string[],
 ): Promise<void> {
-  await ensureUser();
+  await ensureWritableUser();
   const db = getDb();
   const exists = currentAttractionIds.includes(attractionId);
   let newIds: string[];

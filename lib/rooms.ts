@@ -7,7 +7,7 @@ import {
   updateDoc,
   type Unsubscribe,
 } from "firebase/firestore";
-import { ensureUser, getDb } from "./firebase";
+import { ensureWritableUser, getDb } from "./firebase";
 import type { Member, MemberInput, Room } from "./types";
 
 // ตัด 0/O/1/I/l ออก อ่านง่ายเวลาส่งต่อกัน
@@ -20,7 +20,7 @@ export function generateRoomId(length = 10): string {
 }
 
 export async function createRoom(title: string, emoji: string): Promise<string> {
-  const user = await ensureUser();
+  const user = await ensureWritableUser();
   const id = generateRoomId();
   const room: Room = {
     title: title.trim(),
@@ -34,7 +34,7 @@ export async function createRoom(title: string, emoji: string): Promise<string> 
 }
 
 export async function archiveRoom(roomId: string): Promise<void> {
-  const user = await ensureUser();
+  const user = await ensureWritableUser();
   const db = getDb();
   await updateDoc(doc(db, "rooms", roomId), {
     archived: true,
@@ -44,7 +44,7 @@ export async function archiveRoom(roomId: string): Promise<void> {
 }
 
 export async function restoreRoom(roomId: string): Promise<void> {
-  await ensureUser();
+  await ensureWritableUser();
   const db = getDb();
   await updateDoc(doc(db, "rooms", roomId), {
     archived: false,
@@ -101,11 +101,13 @@ export function subscribeMembers(
 }
 
 export async function saveMember(roomId: string, uid: string, input: MemberInput): Promise<void> {
+  await ensureWritableUser();
   const data: Omit<Member, "id"> = { ...input, updatedAt: Date.now() };
   await setDoc(doc(getDb(), "rooms", roomId, "members", uid), data);
 }
 
 export async function removeMember(roomId: string, uid: string): Promise<void> {
+  await ensureWritableUser();
   await deleteDoc(doc(getDb(), "rooms", roomId, "members", uid));
 }
 

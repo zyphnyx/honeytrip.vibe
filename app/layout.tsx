@@ -3,6 +3,7 @@ import { Noto_Sans_Thai } from "next/font/google";
 import "./globals.css";
 import { StoreHydrator } from "@/components/StoreHydrator";
 import { AnimatedBackground } from "@/components/background/AnimatedBackground";
+import { IdentitySession } from "@/components/IdentitySession";
 
 const notoThai = Noto_Sans_Thai({
   variable: "--font-noto-thai",
@@ -31,7 +32,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         />
         <StoreHydrator />
         <AnimatedBackground>
-          {children}
+          <IdentitySession>{children}</IdentitySession>
         </AnimatedBackground>
       </body>
     </html>

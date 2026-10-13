@@ -7,24 +7,34 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test tests/places.test.mjs tests/activities.test.mjs tests/protection.test.mjs tests/finance.test.mjs"
+    "test": "node --experimental-strip-types --test tests/places.test.mjs tests/activities.test.mjs tests/protection.test.mjs tests/finance.test.mjs tests/device-link.test.mjs",
+    "test:emulator": "firebase emulators:exec --only auth,firestore --project demo-honeytrip-link \"node --experimental-strip-types --test tests/device-link.rules.test.mjs tests/device-link.emulator.test.mjs\""
   },
   "dependencies": {
     "@zxing/library": "^0.21.3",
     "firebase": "^12.19.0",
+    "firebase-admin": "^14.5.0",
     "next": "16.4.0",
+    "qrcode": "^1.5.4",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "server-only": "^0.0.1",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
+    "firebase-tools": "^15.33.0",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.14.6"
   }
 }

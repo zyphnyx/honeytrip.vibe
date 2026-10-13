@@ -18,6 +18,41 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Every room writer must first mark its UID used. Pairing can only lock an unused UID.
+    function canWriteIdentity() {
+      return signedIn()
+        && get(/databases/$(database)/documents/identityGuards/$(request.auth.uid)).data.used == true;
+    }
+
+    match /identityGuards/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['used', 'lockedUntil'])
+        && request.resource.data.used == true && request.resource.data.lockedUntil == 0;
+      allow update: if signedIn() && request.auth.uid == uid
+        && resource.data.used == false
+        && resource.data.lockedUntil <= request.time.toMillis()
+        && request.resource.data.keys().hasOnly(['used', 'lockedUntil'])
+        && request.resource.data.used == true && request.resource.data.lockedUntil == 0;
+      allow delete, list: if false;
+    }
+
+    match /deviceLinkRequests/{id} { allow read, write: if false; }
+    match /deviceLinkCodes/{id} { allow read, write: if false; }
+    match /deviceLinkLimits/{id} { allow read, write: if false; }
+
+    match /users/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, delete: if false;
+      allow create, update: if canWriteIdentity() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['displayName', 'emoji', 'recentRooms', 'updatedAt'])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() <= 150
+        && request.resource.data.emoji is string && request.resource.data.emoji.size() <= 32
+        && request.resource.data.recentRooms is list && request.resource.data.recentRooms.size() <= 10
+        && request.resource.data.updatedAt is number;
+    }
+
     function getRoomData(rId) {
       return get(/databases/$(database)/documents/rooms/$(rId)).data;
     }
@@ -37,7 +72,7 @@ service cloud.firestore {
       allow read: if signedIn();
 
       // สร้างห้องใหม่: ต้องผูก ownerUid ตรงกับ Anonymous UID ของผู้สร้างเสมอ
-      allow create: if signedIn()
+      allow create: if canWriteIdentity()
         && request.resource.data.keys().hasOnly(['title', 'emoji', 'createdAt', 'ownerUid', 'archived', 'archivedAt', 'archivedBy'])
         && request.resource.data.title is string
         && request.resource.data.title.size() > 0
@@ -49,7 +84,7 @@ service cloud.firestore {
 
       // แก้ไขห้อง: อนุญาตเฉพาะผู้ดูแลทริป และแก้ไขได้เฉพาะฟิลด์การจัดเก็บ (Archive / Restore) เท่านั้น
       // ห้ามเปลี่ยน ownerUid, title, emoji หรือ createdAt โดยเด็ดขาด
-      allow update: if signedIn()
+      allow update: if canWriteIdentity()
         && ('ownerUid' in resource.data)
         && resource.data.ownerUid == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['archived', 'archivedAt', 'archivedBy'])
@@ -73,7 +108,7 @@ service cloud.firestore {
       // สมาชิกในห้อง
       match /members/{memberId} {
         allow read: if signedIn();
-        allow create, update: if signedIn()
+        allow create, update: if canWriteIdentity()
           && !isRoomArchived(roomId)
           && request.auth.uid == memberId
           && request.resource.data.keys().hasOnly([
@@ -98,7 +133,7 @@ service cloud.firestore {
           && request.resource.data.origin.size() <= 200;
 
         // ลบได้เฉพาะโปรไฟล์ของตนเองเท่านั้น (ห้ามลบสมาชิกคนอื่น)
-        allow delete: if signedIn()
+        allow delete: if canWriteIdentity()
           && !isRoomArchived(roomId)
           && request.auth.uid == memberId;
       }
@@ -106,7 +141,7 @@ service cloud.firestore {
       // สถานที่เสนอ (ที่พัก / ที่เที่ยว)
       match /places/{placeId} {
         allow read: if signedIn();
-        allow create, update: if signedIn()
+        allow create, update: if canWriteIdentity()
           && !isRoomArchived(roomId)
           && request.resource.data.name is string
           && request.resource.data.name.size() > 0
@@ -115,7 +150,7 @@ service cloud.firestore {
           && request.resource.data.createdBy is string;
 
         // ลบได้เฉพาะผู้เสนอสถานที่ หรือผู้ดูแลทริป
-        allow delete: if signedIn()
+        allow delete: if canWriteIdentity()
           && !isRoomArchived(roomId)
           && (request.auth.uid == resource.data.createdBy || isRoomOwner(roomId));
       }
@@ -123,12 +158,12 @@ service cloud.firestore {
       // การโหวต (uid ของผู้โหวต)
       match /votes/{voteUid} {
         allow read: if signedIn();
-        allow create, update: if signedIn()
+        allow create, update: if canWriteIdentity()
           && !isRoomArchived(roomId)
           && request.auth.uid == voteUid;
 
         // ลบได้เฉพาะการโหวตของตนเองเท่านั้น
-        allow delete: if signedIn()
+        allow delete: if canWriteIdentity()
           && !isRoomArchived(roomId)
           && request.auth.uid == voteUid;
       }
@@ -136,7 +171,7 @@ service cloud.firestore {
       // การตั้งค่าห้อง เช่น จุดหมายปลายทาง (destination)
       match /settings/{settingId} {
         allow read: if signedIn();
-        allow create, update: if signedIn()
+        allow create, update: if canWriteIdentity()
           && !isRoomArchived(roomId);
         allow delete: if false; // ห้ามลบเอกสารการตั้งค่า
       }
@@ -144,7 +179,7 @@ service cloud.firestore {
       // ข้อมูลการวางแผนทริป เช่น วันเดินทางที่คอนเฟิร์ม (rooms/{roomId}/plan/meta)
       match /plan/{planDocId} {
         allow read: if signedIn();
-        allow create, update: if signedIn()
+        allow create, update: if canWriteIdentity()
           && !isRoomArchived(roomId)
           && request.resource.data.timezone is string;
         allow delete: if false; // ห้ามลบข้อมูลการวางแผน
@@ -153,7 +188,7 @@ service cloud.firestore {
       // กิจกรรมในทริป (Social Feed & Timeline)
       match /activities/{activityId} {
         allow read: if signedIn();
-        allow create, update: if signedIn()
+        allow create, update: if canWriteIdentity()
           && !isRoomArchived(roomId)
           && request.resource.data.title is string
           && request.resource.data.title.size() > 0
@@ -163,7 +198,7 @@ service cloud.firestore {
           && request.resource.data.createdBy is string;
 
         // ลบได้เฉพาะผู้สร้างกิจกรรม หรือผู้ดูแลทริป
-        allow delete: if signedIn()
+        allow delete: if canWriteIdentity()
           && !isRoomArchived(roomId)
           && (request.auth.uid == resource.data.createdBy || isRoomOwner(roomId));
       }
@@ -171,7 +206,7 @@ service cloud.firestore {
       // ความคิดเห็นในกิจกรรม (สร้างได้ ลบได้ ห้ามแก้ไข)
       match /activityComments/{commentId} {
         allow read: if signedIn();
-        allow create: if signedIn()
+        allow create: if canWriteIdentity()
           && !isRoomArchived(roomId)
           && request.resource.data.body is string
           && request.resource.data.body.size() > 0
@@ -182,7 +217,7 @@ service cloud.firestore {
         allow update: if false; // ห้ามแก้ไขข้อความคอมเมนต์
 
         // ลบได้เฉพาะเจ้าของคอมเมนต์ หรือผู้ดูแลทริป
-        allow delete: if signedIn()
+        allow delete: if canWriteIdentity()
           && !isRoomArchived(roomId)
           && (request.auth.uid == resource.data.authorUid || isRoomOwner(roomId));
       }
@@ -194,7 +229,7 @@ service cloud.firestore {
       // การตั้งค่าบัญชีและการเงินทริป (financeSettings/main)
       match /financeSettings/{settingDocId} {
         allow read: if signedIn();
-        allow create, update: if signedIn()
+        allow create, update: if canWriteIdentity()
           && !isRoomArchived(roomId);
         allow delete: if false; // ห้ามลบเอกสารการตั้งค่าการเงิน
       }
@@ -202,13 +237,13 @@ service cloud.firestore {
       // งวดเรียกเก็บเงิน (Dues / Payment Requests)
       match /dues/{dueId} {
         allow read: if signedIn();
-        allow create, update: if signedIn()
+        allow create, update: if canWriteIdentity()
           && !isRoomArchived(roomId)
           && request.resource.data.totalAmountSatang is number
           && request.resource.data.totalAmountSatang >= 0
           && request.resource.data.title is string
           && request.resource.data.title.size() > 0;
-        allow delete: if signedIn()
+        allow delete: if canWriteIdentity()
           && !isRoomArchived(roomId)
           && (request.auth.uid == resource.data.createdBy || isRoomOwner(roomId));
       }
@@ -216,14 +251,14 @@ service cloud.firestore {
       // รายการแจ้งโอนเงินของสมาชิก (Payments)
       match /payments/{paymentId} {
         allow read: if signedIn();
-        allow create: if signedIn()
+        allow create: if canWriteIdentity()
           && !isRoomArchived(roomId)
           && request.resource.data.amountSatang is number
           && request.resource.data.amountSatang > 0
           && request.auth.uid == request.resource.data.submittedBy;
-        allow update: if signedIn()
+        allow update: if canWriteIdentity()
           && !isRoomArchived(roomId);
-        allow delete: if signedIn()
+        allow delete: if canWriteIdentity()
           && !isRoomArchived(roomId)
           && (resource.data.status == 'rejected' || isRoomOwner(roomId));
       }
@@ -231,13 +266,13 @@ service cloud.firestore {
       // รายจ่ายของทริปที่จ่ายให้ร้านค้า/ผู้ให้บริการ (Expenses)
       match /expenses/{expenseId} {
         allow read: if signedIn();
-        allow create, update: if signedIn()
+        allow create, update: if canWriteIdentity()
           && !isRoomArchived(roomId)
           && request.resource.data.totalCostSatang is number
           && request.resource.data.totalCostSatang >= 0
           && request.resource.data.title is string
           && request.resource.data.title.size() > 0;
-        allow delete: if signedIn()
+        allow delete: if canWriteIdentity()
           && !isRoomArchived(roomId)
           && (request.auth.uid == resource.data.createdBy || isRoomOwner(roomId));
       }
@@ -245,7 +280,7 @@ service cloud.firestore {
       // สมุดบัญชีกองกลาง (Ledger Entries — Append-Only ห้ามแก้ไขหรือลบ)
       match /ledgerEntries/{ledgerId} {
         allow read: if signedIn();
-        allow create: if signedIn()
+        allow create: if canWriteIdentity()
           && !isRoomArchived(roomId)
           && request.resource.data.amountSatang is number
           && request.resource.data.amountSatang >= 0

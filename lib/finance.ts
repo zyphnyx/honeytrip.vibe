@@ -7,7 +7,7 @@ import {
   updateDoc,
   type Unsubscribe,
 } from "firebase/firestore";
-import { ensureUser, getDb } from "./firebase";
+import { ensureWritableUser, getDb } from "./firebase";
 import type {
   Due,
   Expense,
@@ -115,7 +115,7 @@ export async function saveFinanceSettings(
   roomId: string,
   settings: Partial<FinanceSettings>
 ): Promise<void> {
-  const user = await ensureUser();
+  const user = await ensureWritableUser();
   const db = getDb();
   const data: Partial<FinanceSettings> = {
     ...settings,
@@ -139,7 +139,7 @@ export async function createDue(
     linkedActivityId?: string | null;
   }
 ): Promise<string> {
-  const user = await ensureUser();
+  const user = await ensureWritableUser();
   const db = getDb();
   const id = generateDueId();
   const now = Date.now();
@@ -176,7 +176,7 @@ export async function cancelDue(
   dueId: string,
   hasPayments = false
 ): Promise<void> {
-  await ensureUser();
+  await ensureWritableUser();
   const db = getDb();
   if (!hasPayments) {
     try {
@@ -213,7 +213,7 @@ export async function submitPayment(
     status?: PaymentStatus;
   }
 ): Promise<string> {
-  const user = await ensureUser();
+  const user = await ensureWritableUser();
   const db = getDb();
   const id = generateFinanceId("pay");
   const now = Date.now();
@@ -247,7 +247,7 @@ export async function approvePayment(
   payment: Payment,
   dueTitle?: string
 ): Promise<void> {
-  const user = await ensureUser();
+  const user = await ensureWritableUser();
   const db = getDb();
   const now = Date.now();
 
@@ -284,7 +284,7 @@ export async function rejectPayment(
   paymentId: string,
   reason: string
 ): Promise<void> {
-  await ensureUser();
+  await ensureWritableUser();
   const db = getDb();
   await updateDoc(doc(db, "rooms", roomId, "payments", paymentId), {
     status: "rejected",
@@ -297,7 +297,7 @@ export async function rejectPayment(
  * Deletes a payment document (e.g. for cleaning up rejected slips)
  */
 export async function deletePayment(roomId: string, paymentId: string): Promise<void> {
-  await ensureUser();
+  await ensureWritableUser();
   const db = getDb();
   await deleteDoc(doc(db, "rooms", roomId, "payments", paymentId));
 }
@@ -318,7 +318,7 @@ export async function createExpense(
     notes?: string;
   }
 ): Promise<string> {
-  const user = await ensureUser();
+  const user = await ensureWritableUser();
   const db = getDb();
   const id = generateFinanceId("exp");
   const now = Date.now();
@@ -386,7 +386,7 @@ export async function updateExpense(
     notes?: string;
   }
 ): Promise<void> {
-  const user = await ensureUser();
+  const user = await ensureWritableUser();
   const db = getDb();
   const now = Date.now();
 
@@ -438,7 +438,7 @@ export async function updateExpense(
  * Deletes an expense document
  */
 export async function deleteExpense(roomId: string, expenseId: string): Promise<void> {
-  await ensureUser();
+  await ensureWritableUser();
   const db = getDb();
   await deleteDoc(doc(db, "rooms", roomId, "expenses", expenseId));
 }

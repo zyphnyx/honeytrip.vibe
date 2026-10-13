@@ -13,7 +13,7 @@ import {
   writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
-import { ensureUser, getDb } from "./firebase";
+import { ensureWritableUser, getDb } from "./firebase";
 import type {
   Activity,
   ActivityComment,
@@ -62,7 +62,7 @@ export async function savePlanMeta(
   metaInput: Partial<TripPlanMeta>,
   userUid: string,
 ): Promise<void> {
-  await ensureUser();
+  await ensureWritableUser();
   const db = getDb();
   const metaRef = doc(db, "rooms", roomId, "plan", "meta");
   const payload = sanitizeFirestorePayload({
@@ -106,7 +106,7 @@ export async function saveActivity(
   activityId?: string,
   userUid?: string,
 ): Promise<string> {
-  await ensureUser();
+  await ensureWritableUser();
   const db = getDb();
   const now = Date.now();
   const targetId = activityId || doc(collection(db, "rooms", roomId, "activities")).id;
@@ -143,7 +143,7 @@ export async function updateActivityStatus(
   activityId: string,
   status: ActivityStatus,
 ): Promise<void> {
-  await ensureUser();
+  await ensureWritableUser();
   const ref = doc(getDb(), "rooms", roomId, "activities", activityId);
   await updateDoc(ref, {
     status,
@@ -157,7 +157,7 @@ export async function toggleActivityLike(
   userUid: string,
   isCurrentlyLiked: boolean,
 ): Promise<void> {
-  await ensureUser();
+  await ensureWritableUser();
   const ref = doc(getDb(), "rooms", roomId, "activities", activityId);
   await updateDoc(ref, {
     likedByUids: isCurrentlyLiked ? arrayRemove(userUid) : arrayUnion(userUid),
@@ -166,7 +166,7 @@ export async function toggleActivityLike(
 }
 
 export async function deleteActivity(roomId: string, activityId: string): Promise<void> {
-  await ensureUser();
+  await ensureWritableUser();
   const db = getDb();
 
   // ลบคอมเมนต์ที่ผูกกับกิจกรรมนี้ออกด้วย
@@ -226,7 +226,7 @@ export async function addActivityComment(
   authorName?: string,
   authorEmoji?: string,
 ): Promise<string> {
-  await ensureUser();
+  await ensureWritableUser();
   const trimmed = body.trim();
   if (!trimmed) throw new Error("ข้อความคอมเมนต์ต้องไม่ว่างเปล่า");
   if (trimmed.length > 500) throw new Error("ข้อความคอมเมนต์ต้องไม่เกิน 500 ตัวอักษร");
@@ -250,6 +250,6 @@ export async function deleteActivityComment(
   roomId: string,
   commentId: string,
 ): Promise<void> {
-  await ensureUser();
+  await ensureWritableUser();
   await deleteDoc(doc(getDb(), "rooms", roomId, "activityComments", commentId));
 }

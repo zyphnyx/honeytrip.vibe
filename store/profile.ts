@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-interface RecentRoom {
+export interface RecentRoom {
   id: string;
   title: string;
   emoji: string;
@@ -10,6 +10,7 @@ interface RecentRoom {
 
 interface ProfileState {
   hydrated: boolean;
+  identityUid: string | null;
   name: string;
   emoji: string;
   recentRooms: RecentRoom[];
@@ -26,6 +27,7 @@ export const useProfile = create<ProfileState>()(
   persist(
     (set) => ({
       hydrated: false,
+      identityUid: null,
       name: "",
       emoji: "🐻",
       recentRooms: [],
@@ -48,7 +50,7 @@ export const useProfile = create<ProfileState>()(
     {
       name: "honeytrip-profile",
       skipHydration: true,
-      partialize: (s) => ({ name: s.name, emoji: s.emoji, recentRooms: s.recentRooms }),
+      partialize: (s) => ({ identityUid: s.identityUid, name: s.name, emoji: s.emoji, recentRooms: s.recentRooms }),
       onRehydrateStorage: () => () => useProfile.setState({ hydrated: true }),
     },
   ),

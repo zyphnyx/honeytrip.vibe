@@ -1,5 +1,6 @@
 "use client";
 
+import { DeviceLinkEntry } from "@/components/DeviceLinkEntry";
 import { Tooltip } from "@/components/Tooltip";
 
 export interface MotionToggleProps {
@@ -15,7 +16,8 @@ export interface MotionToggleProps {
  */
 export function MotionToggle({ motionEnabled, onToggle }: MotionToggleProps) {
   return (
-    <div className="fixed bottom-4 right-4 z-40 max-sm:bottom-3 max-sm:right-3 pointer-events-auto">
+    <div className="fixed bottom-4 right-4 z-40 max-sm:bottom-3 max-sm:right-3 pointer-events-auto flex items-center gap-2">
+      <DeviceLinkEntry />
       <Tooltip
         content={
           motionEnabled
@@ -24,27 +26,27 @@ export function MotionToggle({ motionEnabled, onToggle }: MotionToggleProps) {
         }
         position="top"
       >
-      <button
-        id="h-motion"
-        type="button"
-        onClick={onToggle}
-        className="h-motion-toggle"
-        aria-pressed={motionEnabled}
-        aria-label={motionEnabled ? "หยุดภาพเคลื่อนไหวพื้นหลัง" : "เปิดภาพเคลื่อนไหวพื้นหลัง"}
-      >
-        <span className="h-motion-icon" aria-hidden="true">
-          🐝
-        </span>
-        <span className="h-motion-indicator h-motion-on" aria-hidden="true">
-          ◉
-        </span>
-        <span className="h-motion-indicator h-motion-off" aria-hidden="true">
-          ○
-        </span>
-        <span className="h-motion-label h-motion-on">แอนิเมชัน เปิด</span>
-        <span className="h-motion-label h-motion-off">แอนิเมชัน ปิด</span>
-      </button>
-    </Tooltip>
-  </div>
+        <button
+          id="h-motion"
+          type="button"
+          onClick={onToggle}
+          className="h-motion-toggle"
+          aria-pressed={motionEnabled}
+          aria-label={motionEnabled ? "หยุดภาพเคลื่อนไหวพื้นหลัง" : "เปิดภาพเคลื่อนไหวพื้นหลัง"}
+        >
+          <span className="h-motion-icon" aria-hidden="true">
+            🐝
+          </span>
+          <span className="h-motion-indicator h-motion-on" aria-hidden="true">
+            ◉
+          </span>
+          <span className="h-motion-indicator h-motion-off" aria-hidden="true">
+            ○
+          </span>
+          <span className="h-motion-label h-motion-on">แอนิเมชัน เปิด</span>
+          <span className="h-motion-label h-motion-off">แอนิเมชัน ปิด</span>
+        </button>
+      </Tooltip>
+    </div>
   );
 }
