@@ -52,8 +52,16 @@ export async function GET(
     }
 
     // 5. Fetch private blob via Vercel Blob SDK
+    const token =
+      process.env.BLOB_READ_WRITE_TOKEN ||
+      process.env.HONEYTRIP_SLIPS_READ_WRITE_TOKEN ||
+      Object.entries(process.env).find(([k]) => k.endsWith("_READ_WRITE_TOKEN"))?.[1];
+
     try {
-      const blobResult = await get(payment.evidence.blobPath, { access: "private" });
+      const blobResult = await get(payment.evidence.blobPath, {
+        access: "private",
+        token: token || undefined,
+      });
 
       if (!blobResult || blobResult.statusCode !== 200 || !blobResult.stream) {
         return NextResponse.json(

@@ -59,9 +59,17 @@ export async function POST(request: Request) {
       );
     }
 
-    // 5. Check Blob Storage Configuration
-    const token = process.env.BLOB_READ_WRITE_TOKEN;
+    // 5. Check Blob Storage Configuration (support BLOB_READ_WRITE_TOKEN or custom store name like HONEYTRIP_SLIPS_READ_WRITE_TOKEN)
+    const token =
+      process.env.BLOB_READ_WRITE_TOKEN ||
+      process.env.HONEYTRIP_SLIPS_READ_WRITE_TOKEN ||
+      Object.entries(process.env).find(([k]) => k.endsWith("_READ_WRITE_TOKEN"))?.[1];
+
     if (!token && process.env.NODE_ENV === "production") {
+      console.warn("Vercel Blob Storage: No *_READ_WRITE_TOKEN found in process.env", {
+        nodeEnv: process.env.NODE_ENV,
+        matchedKeys: Object.keys(process.env).filter((k) => k.includes("BLOB") || k.includes("TOKEN")),
+      });
       return NextResponse.json(
         {
           error: "storage_not_configured",
@@ -83,6 +91,7 @@ export async function POST(request: Request) {
       blob = await put(pathname, buffer, {
         access: "private",
         contentType: mimeType,
+        token: token || undefined,
       });
     } catch (blobErr: unknown) {
       const errMsg = blobErr instanceof Error ? blobErr.message : String(blobErr);
