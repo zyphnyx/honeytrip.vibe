@@ -5,7 +5,7 @@ import Link from "next/link";
 import { formatSatang, type Due, type Expense } from "@/lib/financeTypes";
 import { useFinance } from "@/lib/useFinance";
 import { getDuePaymentProgress } from "@/lib/financeCalc";
-import { cancelDue } from "@/lib/finance";
+import { cancelDue, deleteDue, deletePayment } from "@/lib/finance";
 import type { Member, Room } from "@/lib/types";
 
 // Modals & subcomponents
@@ -110,6 +110,40 @@ export function TripFinance({
     } catch (err) {
       console.error("Failed to cancel due:", err);
       alert("เกิดข้อผิดพลาดในการยกเลิกงวดเก็บเงิน กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setCancellingDueId(null);
+    }
+  };
+
+  const handleDeleteDue = async (due: Due) => {
+    const relatedPayments = payments.filter((p) => p.dueId === due.id);
+    const approvedPayments = relatedPayments.filter((p) => p.status === "approved");
+
+    if (approvedPayments.length > 0) {
+      alert(
+        `ไม่สามารถลบงวดนี้ได้ เนื่องจากมีรายการโอนที่อนุมัติเข้ากองกลางแล้ว ${approvedPayments.length} รายการ (รวม ${formatSatang(
+          approvedPayments.reduce((sum, p) => sum + p.amountSatang, 0)
+        )})\n\nหากต้องการลบ กรุณายกเลิกการอนุมัติยอดโอนในแท็บ "ตรวจสอบสลิป" ก่อน`
+      );
+      return;
+    }
+
+    const confirmMsg =
+      relatedPayments.length > 0
+        ? `ยืนยันการลบงวด "${due.title}" นี้ออกจากระบบถาวรหรือไม่?\n(มีรายการแจ้งโอนที่ยกเลิก/รอตรวจ ${relatedPayments.length} รายการ ซึ่งจะถูกลบไปด้วย)`
+        : `ยืนยันการลบงวด "${due.title}" นี้ออกจากระบบถาวรหรือไม่?`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setCancellingDueId(due.id);
+      for (const p of relatedPayments) {
+        await deletePayment(roomId, p.id);
+      }
+      await deleteDue(roomId, due.id);
+    } catch (err) {
+      console.error("Failed to delete due:", err);
+      alert("เกิดข้อผิดพลาดในการลบงวดเก็บเงิน: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setCancellingDueId(null);
     }
@@ -780,20 +814,35 @@ export function TripFinance({
                         {cancelledDues.map((due) => (
                           <div
                             key={due.id}
-                            className="card p-3 border border-stone-200/60 bg-stone-50/60 rounded-xl text-stone-500 text-xs flex items-center justify-between opacity-80"
+                            className="card p-3 border border-stone-200/60 bg-stone-50/60 rounded-xl text-stone-500 text-xs flex items-center justify-between opacity-85 hover:opacity-100 transition-opacity"
                           >
-                            <div>
-                              <span className="line-through font-bold text-stone-700">{due.title}</span>
-                              <span className="ml-2 text-[11px] text-stone-400">
-                                {formatSatang(due.totalAmountSatang)}
-                              </span>
+                            <div className="min-w-0 pr-2">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="line-through font-bold text-stone-700">{due.title}</span>
+                                <span className="text-[11px] text-stone-400">
+                                  {formatSatang(due.totalAmountSatang)}
+                                </span>
+                              </div>
                               {due.description && (
-                                <p className="text-[10px] text-stone-400 mt-0.5">{due.description}</p>
+                                <p className="text-[10px] text-stone-400 mt-0.5 truncate">{due.description}</p>
                               )}
                             </div>
-                            <span className="px-2 py-0.5 rounded-lg text-[10px] bg-rose-50 text-rose-700 border border-rose-200/70 font-bold shrink-0">
-                              ยกเลิกแล้ว
-                            </span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="px-2 py-0.5 rounded-lg text-[10px] bg-rose-50 text-rose-700 border border-rose-200/70 font-bold">
+                                ยกเลิกแล้ว
+                              </span>
+                              {isManager && (
+                                <button
+                                  type="button"
+                                  disabled={cancellingDueId === due.id}
+                                  onClick={() => handleDeleteDue(due)}
+                                  className="px-2.5 py-1 rounded-lg text-xs font-semibold text-rose-600 bg-white hover:bg-rose-50 border border-rose-200 shadow-2xs transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                  title="ลบงวดนี้ออกจากระบบถาวร"
+                                >
+                                  <span>🗑️</span> {cancellingDueId === due.id ? "กำลังลบ..." : "ลบถาวร"}
+                                </button>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>

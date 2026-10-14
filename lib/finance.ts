@@ -200,6 +200,15 @@ export async function cancelDue(
 }
 
 /**
+ * Deletes a Due document permanently from Firestore
+ */
+export async function deleteDue(roomId: string, dueId: string): Promise<void> {
+  await ensureWritableUser();
+  const db = getDb();
+  await deleteDoc(doc(db, "rooms", roomId, "dues", dueId));
+}
+
+/**
  * Submits a payment evidence from a member
  */
 export async function submitPayment(
