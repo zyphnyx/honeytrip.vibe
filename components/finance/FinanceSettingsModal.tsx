@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { FinanceSettings, SlipOkQuota } from "@/lib/financeTypes";
+import type { FinanceSettings } from "@/lib/financeTypes";
 import { saveFinanceSettings } from "@/lib/finance";
 import { THAI_BANK_CODES } from "@/lib/slipokAdapter";
 import type { Member } from "@/lib/types";
@@ -46,33 +46,9 @@ function FinanceSettingsModalContent({
   const [receivingAccount, setReceivingAccount] = useState(() => settings?.receivingAccount || "");
   const [receivingName, setReceivingName] = useState(() => settings?.receivingName || "");
   const [promptPayId, setPromptPayId] = useState(() => settings?.promptPayId || "");
-  const [autoVerifyEnabled, setAutoVerifyEnabled] = useState(() => Boolean(settings?.autoVerifyEnabled));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hideAccountInput, setHideAccountInput] = useState(false);
-
-  // Quota check state
-  const [checkingQuota, setCheckingQuota] = useState(false);
-  const [quotaResult, setQuotaResult] = useState<SlipOkQuota | null>(null);
-  const [quotaError, setQuotaError] = useState<string | null>(null);
-
-  const handleCheckQuota = async () => {
-    setCheckingQuota(true);
-    setQuotaError(null);
-    setQuotaResult(null);
-    try {
-      const res = await fetch("/api/finance/quota");
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || data.error || "ไม่สามารถตรวจสอบโควต้าได้");
-      }
-      setQuotaResult(data);
-    } catch (err: unknown) {
-      setQuotaError(err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการตรวจสอบโควต้า");
-    } finally {
-      setCheckingQuota(false);
-    }
-  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,7 +63,6 @@ function FinanceSettingsModalContent({
         receivingAccount: receivingAccount.trim(),
         receivingName: receivingName.trim(),
         promptPayId: promptPayId.trim() || null,
-        autoVerifyEnabled,
       });
       onClose();
     } catch (err: unknown) {
@@ -109,7 +84,7 @@ function FinanceSettingsModalContent({
             </span>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-stone-900">ตั้งค่าบัญชีและการเงินทริป</h2>
-              <p className="text-xs text-orange-950/80 font-medium">กำหนดผู้ดูแลบัญชี บัญชีรับโอน และ SlipOK API</p>
+              <p className="text-xs text-orange-950/80 font-medium">กำหนดผู้ดูแลบัญชีและบัญชีรับโอนเงินของทริป</p>
             </div>
           </div>
           <button
@@ -160,7 +135,7 @@ function FinanceSettingsModalContent({
                   🏦 ข้อมูลบัญชีรับเงินของทริป
                 </h3>
                 <p className="text-[11px] text-stone-500">
-                  (สำหรับตรวจสลิปอัตโนมัติ — บัญชี <strong>MAKE by KBank</strong> ให้เลือกกสิกรไทย 004)
+                  (สำหรับรับโอนเงินกองกลาง — บัญชี <strong>MAKE by KBank</strong> ให้เลือกกสิกรไทย 004)
                 </p>
               </div>
               <button
@@ -247,72 +222,7 @@ function FinanceSettingsModalContent({
             </div>
           </div>
 
-          <hr className="border-stone-100" />
 
-          {/* SlipOK Integration Section */}
-          <div className="space-y-3 bg-amber-50/60 p-4 rounded-2xl border border-amber-200/60">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xs font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <span>⚡</span> SlipOK Auto-Verification (v1.13)
-                </h3>
-                <p className="text-[11px] text-stone-600">
-                  ตรวจสลิปโอนเงินผ่าน SlipOK API อัตโนมัติ (ปลอดภัย ควบคุมโควต้าฟรี)
-                </p>
-              </div>
-
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={autoVerifyEnabled}
-                  onChange={(e) => setAutoVerifyEnabled(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-stone-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
-              </label>
-            </div>
-
-            <div className="pt-2 flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={handleCheckQuota}
-                disabled={checkingQuota}
-                className="w-full py-2 px-3 rounded-xl bg-white border border-amber-300 text-amber-800 text-xs font-semibold hover:bg-amber-50 transition-colors flex items-center justify-center gap-1.5 shadow-xs"
-              >
-                {checkingQuota ? "กำลังตรวจโควต้า..." : "🔍 เช็คโควต้า SlipOK ที่เหลือ"}
-              </button>
-
-              {quotaResult && (
-                <div className="p-3 bg-white rounded-xl border border-emerald-200 text-xs text-stone-700 space-y-1">
-                  <div className="font-semibold text-emerald-700 flex items-center gap-1">
-                    <span>✅</span> สถานะโควต้าปัจจุบัน:
-                  </div>
-                  <div className="grid grid-cols-2 gap-1 text-[11px] pt-1">
-                    <div>
-                      โควต้าคงเหลือ: <strong className="text-stone-900">{quotaResult.quota}</strong> ครั้ง
-                    </div>
-                    <div>
-                      ใช้เกิน (OverQuota): <strong className="text-stone-900">{quotaResult.overQuota}</strong> ครั้ง
-                    </div>
-                    {quotaResult.specialQuota > 0 && (
-                      <div className="col-span-2">
-                        โควต้าพิเศษ: <strong className="text-stone-900">{quotaResult.specialQuota}</strong> ครั้ง
-                      </div>
-                    )}
-                    <div className="col-span-2 text-stone-500">
-                      วันหมดอายุ: {quotaResult.endDate || "ไม่ระบุ"}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {quotaError && (
-                <div className="p-2.5 bg-rose-50 rounded-xl border border-rose-200 text-rose-700 text-xs">
-                  ⚠️ {quotaError}
-                </div>
-              )}
-            </div>
-          </div>
 
           {/* Footer buttons */}
           <div className="pt-2 flex items-center justify-end gap-2">

@@ -224,7 +224,7 @@ export function TripFinance({
               <button
                 onClick={() => setIsSettingsOpen(true)}
                 className="px-3.5 sm:px-4 py-2.5 rounded-xl bg-white hover:bg-stone-50 text-stone-900 text-xs sm:text-[13px] font-bold border border-stone-200/90 shadow-2xs hover:shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
-                title="ตั้งค่าบัญชี & SlipOK"
+                title="ตั้งค่าบัญชีรับโอน"
               >
                 <span>⚙️</span>
                 <span className="hidden sm:inline">ตั้งค่าบัญชี</span>

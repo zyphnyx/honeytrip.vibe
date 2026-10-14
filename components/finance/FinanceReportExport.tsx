@@ -104,6 +104,8 @@ export default function FinanceReportExport({
     const data = {
       room: { id: roomId, title: room?.title },
       exportedAt: new Date().toISOString(),
+      _storageNotice:
+        "ไฟล์ภาพสลิปหลักฐานถูกจัดเก็บอย่างปลอดภัยบน Vercel Blob Private Storage (อ้างอิงผ่าน payment.evidence.blobPath) สามารถเปิดดูและดาวน์โหลดรูปสลิปต้นฉบับได้จากเมนูผู้ดูแลทริปในระบบ",
       summary,
       dues,
       payments,

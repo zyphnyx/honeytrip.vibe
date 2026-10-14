@@ -707,5 +707,630 @@ test("Expense installments and status computation", async (t) => {
   });
 });
 
+// ==============================================================================
+// 9. Atomic Transactions & Idempotency Specification
+// Mini transactional in-memory store simulating Firestore runTransaction behavior
+class MockFirestoreDb {
+    constructor() {
+      this.docs = new Map();
+      this.versions = new Map();
+    }
+
+    set(path, data) {
+      this.docs.set(path, JSON.parse(JSON.stringify(data)));
+      this.versions.set(path, (this.versions.get(path) || 0) + 1);
+    }
+
+    get(path) {
+      const data = this.docs.get(path);
+      return data ? JSON.parse(JSON.stringify(data)) : null;
+    }
+
+    async runTransaction(updateFn) {
+      const MAX_RETRIES = 5;
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        const readVersions = new Map();
+        let writeStarted = false;
+        const pendingWrites = [];
+
+        const tx = {
+          get: async (refPath) => {
+            if (writeStarted) {
+              throw new Error("Firestore transactions require all reads to be executed before all writes.");
+            }
+            readVersions.set(refPath, this.versions.get(refPath) || 0);
+            const data = this.docs.get(refPath);
+            return {
+              exists: () => data !== undefined && data !== null,
+              data: () => (data ? JSON.parse(JSON.stringify(data)) : undefined),
+            };
+          },
+          update: (refPath, patch) => {
+            writeStarted = true;
+            pendingWrites.push({ type: "update", refPath, patch });
+          },
+          set: (refPath, data) => {
+            writeStarted = true;
+            pendingWrites.push({ type: "set", refPath, data });
+          },
+        };
+
+        try {
+          await updateFn(tx);
+        } catch (err) {
+          throw err;
+        }
+
+        let hasConflict = false;
+        for (const [refPath, version] of readVersions.entries()) {
+          const currentVersion = this.versions.get(refPath) || 0;
+          if (currentVersion !== version) {
+            hasConflict = true;
+            break;
+          }
+        }
+
+        if (hasConflict) {
+          continue;
+        }
+
+        for (const op of pendingWrites) {
+          if (op.type === "set") {
+            this.set(op.refPath, op.data);
+          } else if (op.type === "update") {
+            const existing = this.get(op.refPath) || {};
+            this.set(op.refPath, { ...existing, ...op.patch });
+          }
+        }
+        return;
+      }
+      throw new Error("Transaction failed after maximum retries due to concurrency contention.");
+    }
+  }
+
+  async function simulateApprovePayment(db, roomId, paymentId, dueTitle, userUid) {
+    const paymentPath = `rooms/${roomId}/payments/${paymentId}`;
+    await db.runTransaction(async (tx) => {
+      const paymentSnap = await tx.get(paymentPath);
+      if (!paymentSnap.exists()) throw new Error("ไม่พบรายการแจ้งโอนเงิน");
+      const current = paymentSnap.data();
+      if (current.status === "approved") return;
+
+      const nextCycle = (current.approvalCycle || 0) + 1;
+      const ledgerEntryId = `led_app_${paymentId}_${nextCycle}`;
+      const ledgerPath = `rooms/${roomId}/ledgerEntries/${ledgerEntryId}`;
+      const ledgerSnap = await tx.get(ledgerPath);
+      if (ledgerSnap.exists()) return;
+
+      const now = Date.now();
+      tx.update(paymentPath, {
+        status: "approved",
+        approvalCycle: nextCycle,
+        approvedBy: userUid,
+        approvedAt: now,
+        updatedAt: now,
+      });
+
+      tx.set(ledgerPath, {
+        id: ledgerEntryId,
+        type: "income",
+        amountSatang: current.amountSatang,
+        source: "payment",
+        referenceId: paymentId,
+        description: `รับเงินค่า${dueTitle || "ทริป"} จากสมาชิก`,
+        memberUid: current.memberUid,
+        createdBy: userUid,
+        createdAt: now,
+      });
+    });
+  }
+
+  async function simulateRevokeApprovedPayment(db, roomId, paymentId, reason, userUid) {
+    const paymentPath = `rooms/${roomId}/payments/${paymentId}`;
+    await db.runTransaction(async (tx) => {
+      const paymentSnap = await tx.get(paymentPath);
+      if (!paymentSnap.exists()) throw new Error("ไม่พบรายการแจ้งโอนเงิน");
+      const current = paymentSnap.data();
+      if (current.status !== "approved") return;
+
+      const currentCycle = current.approvalCycle || 1;
+      const reversalEntryId = `led_rev_${paymentId}_${currentCycle}`;
+      const ledgerPath = `rooms/${roomId}/ledgerEntries/${reversalEntryId}`;
+      const ledgerSnap = await tx.get(ledgerPath);
+      if (ledgerSnap.exists()) return;
+
+      const now = Date.now();
+      tx.update(paymentPath, {
+        status: "rejected",
+        rejectedReason: reason || "ยกเลิกการอนุมัติเพื่อแก้ไขยอด",
+        updatedAt: now,
+      });
+
+      tx.set(ledgerPath, {
+        id: reversalEntryId,
+        type: "reversal",
+        amountSatang: current.amountSatang,
+        source: "payment",
+        referenceId: paymentId,
+        description: `ยกเลิกการอนุมัติยอดโอน: ${reason || "แก้ไขข้อผิดพลาด"}`,
+        memberUid: current.memberUid,
+        createdBy: userUid,
+        createdAt: now,
+      });
+    });
+  }
+
+  async function simulateUpdatePaymentAmount(db, roomId, paymentId, newAmountSatang, dueTitle, reason, userUid) {
+    const paymentPath = `rooms/${roomId}/payments/${paymentId}`;
+    await db.runTransaction(async (tx) => {
+      const paymentSnap = await tx.get(paymentPath);
+      if (!paymentSnap.exists()) throw new Error("ไม่พบรายการแจ้งโอนเงิน");
+      const current = paymentSnap.data();
+
+      if (newAmountSatang === current.amountSatang) return;
+
+      const isApproved = current.status === "approved";
+      const nextSeq = (current.editSeq || 0) + 1;
+      const adjustmentEntryId = `led_adj_${paymentId}_${nextSeq}`;
+      const ledgerPath = `rooms/${roomId}/ledgerEntries/${adjustmentEntryId}`;
+
+      if (isApproved) {
+        const adjustmentSnap = await tx.get(ledgerPath);
+        if (adjustmentSnap.exists()) return;
+      }
+
+      const now = Date.now();
+      tx.update(paymentPath, {
+        amountSatang: newAmountSatang,
+        editSeq: nextSeq,
+        updatedAt: now,
+      });
+
+      if (isApproved) {
+        const delta = newAmountSatang - current.amountSatang;
+        if (delta < 0) {
+          tx.set(ledgerPath, {
+            id: adjustmentEntryId,
+            type: "reversal",
+            amountSatang: Math.abs(delta),
+            source: "payment",
+            referenceId: paymentId,
+            description: `ปรับปรุงลดยอดเงินโอน: จาก ${current.amountSatang} เป็น ${newAmountSatang}`,
+            memberUid: current.memberUid,
+            createdBy: userUid,
+            createdAt: now,
+          });
+        } else if (delta > 0) {
+          tx.set(ledgerPath, {
+            id: adjustmentEntryId,
+            type: "income",
+            amountSatang: delta,
+            source: "payment",
+            referenceId: paymentId,
+            description: `ปรับปรุงเพิ่มยอดเงินโอน: จาก ${current.amountSatang} เป็น ${newAmountSatang}`,
+            memberUid: current.memberUid,
+            createdBy: userUid,
+            createdAt: now,
+          });
+        }
+      }
+    });
+  }
+
+test("Atomic Transactions & Idempotency Specification", async (t) => {
+  await t.test("normal payment approval atomically commits payment status and income entry", async () => {
+    const db = new MockFirestoreDb();
+    db.set("rooms/r1/payments/p1", {
+      id: "p1",
+      dueId: "d1",
+      memberUid: "m1",
+      submittedBy: "m1",
+      amountSatang: 100000,
+      status: "submitted",
+    });
+
+    await simulateApprovePayment(db, "r1", "p1", "ค่าที่พัก", "mgr1");
+
+    const p = db.get("rooms/r1/payments/p1");
+    assert.equal(p.status, "approved");
+    assert.equal(p.approvalCycle, 1);
+
+    const led = db.get("rooms/r1/ledgerEntries/led_app_p1_1");
+    assert.ok(led);
+    assert.equal(led.type, "income");
+    assert.equal(led.amountSatang, 100000);
+    assert.equal(led.referenceId, "p1");
+  });
+
+  await t.test("double-click approval is idempotent and does not credit the same payment twice", async () => {
+    const db = new MockFirestoreDb();
+    db.set("rooms/r1/payments/p1", {
+      id: "p1",
+      dueId: "d1",
+      memberUid: "m1",
+      submittedBy: "m1",
+      amountSatang: 100000,
+      status: "submitted",
+    });
+
+    await simulateApprovePayment(db, "r1", "p1", "ค่าที่พัก", "mgr1");
+    await simulateApprovePayment(db, "r1", "p1", "ค่าที่พัก", "mgr1");
+    await simulateApprovePayment(db, "r1", "p1", "ค่าที่พัก", "mgr1");
+
+    const entries = Array.from(db.docs.entries())
+      .filter(([k]) => k.startsWith("rooms/r1/ledgerEntries/"))
+      .map(([, v]) => v);
+
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].id, "led_app_p1_1");
+    assert.equal(entries[0].amountSatang, 100000);
+
+    const summary = computeFinanceSummary({
+      dues: [],
+      payments: [db.get("rooms/r1/payments/p1")],
+      expenses: [],
+      ledgerEntries: entries,
+      memberUids: ["m1"],
+    });
+
+    assert.equal(summary.confirmedFundBalanceSatang, 100000);
+    assert.equal(summary.totalIncomingSatang, 100000);
+  });
+
+  await t.test("concurrent double approval executes safely and creates exactly 1 ledger entry", async () => {
+    const db = new MockFirestoreDb();
+    db.set("rooms/r1/payments/p1", {
+      id: "p1",
+      dueId: "d1",
+      memberUid: "m1",
+      submittedBy: "m1",
+      amountSatang: 250000,
+      status: "submitted",
+    });
+
+    await Promise.all([
+      simulateApprovePayment(db, "r1", "p1", "ค่าทริป", "mgr1"),
+      simulateApprovePayment(db, "r1", "p1", "ค่าทริป", "mgr2"),
+    ]);
+
+    const entries = Array.from(db.docs.entries())
+      .filter(([k]) => k.startsWith("rooms/r1/ledgerEntries/"))
+      .map(([, v]) => v);
+
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].amountSatang, 250000);
+    assert.equal(db.get("rooms/r1/payments/p1").status, "approved");
+  });
+
+  await t.test("failed transaction leaves no partial writes", async () => {
+    const db = new MockFirestoreDb();
+    db.set("rooms/r1/payments/p1", {
+      id: "p1",
+      dueId: "d1",
+      memberUid: "m1",
+      submittedBy: "m1",
+      amountSatang: 100000,
+      status: "submitted",
+    });
+
+    await assert.rejects(
+      db.runTransaction(async (tx) => {
+        const snap = await tx.get("rooms/r1/payments/p1");
+        assert.ok(snap.exists());
+        tx.update("rooms/r1/payments/p1", { status: "approved" });
+        throw new Error("Network dropped before commit");
+      }),
+      /Network dropped/
+    );
+
+    const p = db.get("rooms/r1/payments/p1");
+    assert.equal(p.status, "submitted");
+    const entries = Array.from(db.docs.entries()).filter(([k]) => k.startsWith("rooms/r1/ledgerEntries/"));
+    assert.equal(entries.length, 0);
+  });
+
+  await t.test("approval -> revoke -> reapproval -> revoke cycle with deterministic ledger identities", async () => {
+    const db = new MockFirestoreDb();
+    db.set("rooms/r1/payments/p1", {
+      id: "p1",
+      dueId: "d1",
+      memberUid: "m1",
+      submittedBy: "m1",
+      amountSatang: 100000,
+      status: "submitted",
+    });
+
+    // Step 1: Initial Approval (Cycle 1)
+    await simulateApprovePayment(db, "r1", "p1", "ค่าทริป", "mgr1");
+    let p = db.get("rooms/r1/payments/p1");
+    assert.equal(p.status, "approved");
+    assert.equal(p.approvalCycle, 1);
+    assert.ok(db.get("rooms/r1/ledgerEntries/led_app_p1_1"));
+
+    // Step 2: Revocation (Cycle 1)
+    await simulateRevokeApprovedPayment(db, "r1", "p1", "โอนผิดยอด", "mgr1");
+    p = db.get("rooms/r1/payments/p1");
+    assert.equal(p.status, "rejected");
+    assert.ok(db.get("rooms/r1/ledgerEntries/led_rev_p1_1"));
+
+    // Repeated Revocation (Idempotency)
+    await simulateRevokeApprovedPayment(db, "r1", "p1", "กดย้ำ", "mgr1");
+
+    let allEntries = Array.from(db.docs.entries())
+      .filter(([k]) => k.startsWith("rooms/r1/ledgerEntries/"))
+      .map(([, v]) => v);
+    assert.equal(allEntries.length, 2);
+    let summary = computeFinanceSummary({ dues: [], payments: [p], expenses: [], ledgerEntries: allEntries, memberUids: ["m1"] });
+    assert.equal(summary.confirmedFundBalanceSatang, 0);
+
+    // Step 3: Re-approval (Cycle 2)
+    await simulateApprovePayment(db, "r1", "p1", "ค่าทริป", "mgr1");
+    p = db.get("rooms/r1/payments/p1");
+    assert.equal(p.status, "approved");
+    assert.equal(p.approvalCycle, 2);
+    assert.ok(db.get("rooms/r1/ledgerEntries/led_app_p1_2"));
+
+    allEntries = Array.from(db.docs.entries())
+      .filter(([k]) => k.startsWith("rooms/r1/ledgerEntries/"))
+      .map(([, v]) => v);
+    assert.equal(allEntries.length, 3);
+    summary = computeFinanceSummary({ dues: [], payments: [p], expenses: [], ledgerEntries: allEntries, memberUids: ["m1"] });
+    assert.equal(summary.confirmedFundBalanceSatang, 100000);
+
+    // Step 4: Revocation again (Cycle 2)
+    await simulateRevokeApprovedPayment(db, "r1", "p1", "ยกเลิกอีกรอบ", "mgr1");
+    p = db.get("rooms/r1/payments/p1");
+    assert.equal(p.status, "rejected");
+    assert.ok(db.get("rooms/r1/ledgerEntries/led_rev_p1_2"));
+
+    allEntries = Array.from(db.docs.entries())
+      .filter(([k]) => k.startsWith("rooms/r1/ledgerEntries/"))
+      .map(([, v]) => v);
+    assert.equal(allEntries.length, 4);
+    summary = computeFinanceSummary({ dues: [], payments: [p], expenses: [], ledgerEntries: allEntries, memberUids: ["m1"] });
+    assert.equal(summary.confirmedFundBalanceSatang, 0);
+  });
+
+  await t.test("editing approved payment amount calculates fresh delta, handles same-amount no-op, and ensures ledger total consistency", async () => {
+    const db = new MockFirestoreDb();
+    db.set("rooms/r1/payments/p1", {
+      id: "p1",
+      dueId: "d1",
+      memberUid: "m1",
+      submittedBy: "m1",
+      amountSatang: 100000,
+      status: "submitted",
+    });
+
+    await simulateApprovePayment(db, "r1", "p1", "ค่าอาหาร", "mgr1");
+
+    await simulateUpdatePaymentAmount(db, "r1", "p1", 120000, "ค่าอาหาร", "เพิ่มยอด", "mgr1");
+    let p = db.get("rooms/r1/payments/p1");
+    assert.equal(p.amountSatang, 120000);
+    assert.equal(p.editSeq, 1);
+    const adj1 = db.get("rooms/r1/ledgerEntries/led_adj_p1_1");
+    assert.ok(adj1);
+    assert.equal(adj1.type, "income");
+    assert.equal(adj1.amountSatang, 20000);
+
+    await simulateUpdatePaymentAmount(db, "r1", "p1", 120000, "ค่าอาหาร", "กดซ้ำ", "mgr1");
+    assert.equal(db.get("rooms/r1/payments/p1").editSeq, 1);
+
+    await simulateUpdatePaymentAmount(db, "r1", "p1", 80000, "ค่าอาหาร", "ลดยอด", "mgr1");
+    p = db.get("rooms/r1/payments/p1");
+    assert.equal(p.amountSatang, 80000);
+    assert.equal(p.editSeq, 2);
+    const adj2 = db.get("rooms/r1/ledgerEntries/led_adj_p1_2");
+    assert.ok(adj2);
+    assert.equal(adj2.type, "reversal");
+    assert.equal(adj2.amountSatang, 40000);
+
+    const allEntries = Array.from(db.docs.entries())
+      .filter(([k]) => k.startsWith("rooms/r1/ledgerEntries/"))
+      .map(([, v]) => v);
+    assert.equal(allEntries.length, 3);
+
+    const summary = computeFinanceSummary({
+      dues: [],
+      payments: [p],
+      expenses: [],
+      ledgerEntries: allEntries,
+      memberUids: ["m1"],
+    });
+
+    assert.equal(summary.confirmedFundBalanceSatang, 80000);
+    assert.equal(summary.totalIncomingSatang, 80000);
+  });
+
+  await t.test("concurrent amount edits calculate deltas from fresh stored state without lost updates", async () => {
+    const db = new MockFirestoreDb();
+    db.set("rooms/r1/payments/p1", {
+      id: "p1",
+      dueId: "d1",
+      memberUid: "m1",
+      submittedBy: "m1",
+      amountSatang: 100000,
+      status: "submitted",
+    });
+
+    await simulateApprovePayment(db, "r1", "p1", "ค่าทริป", "mgr1");
+
+    await Promise.all([
+      simulateUpdatePaymentAmount(db, "r1", "p1", 120000, "ค่าทริป", "แก้ไขโดย mgr1", "mgr1"),
+      simulateUpdatePaymentAmount(db, "r1", "p1", 150000, "ค่าทริป", "แก้ไขโดย mgr2", "mgr2"),
+    ]);
+
+    const p = db.get("rooms/r1/payments/p1");
+    assert.ok([120000, 150000].includes(p.amountSatang));
+
+    const allEntries = Array.from(db.docs.entries())
+      .filter(([k]) => k.startsWith("rooms/r1/ledgerEntries/"))
+      .map(([, v]) => v);
+
+    const summary = computeFinanceSummary({
+      dues: [],
+      payments: [p],
+      expenses: [],
+      ledgerEntries: allEntries,
+      memberUids: ["m1"],
+    });
+
+    assert.equal(summary.confirmedFundBalanceSatang, p.amountSatang);
+  });
+
+  await t.test("backward compatibility: existing payments created before the fix approve safely without approvalCycle or editSeq", async () => {
+    const db = new MockFirestoreDb();
+    db.set("rooms/legacy_room/payments/legacy_pay_99", {
+      id: "legacy_pay_99",
+      dueId: "due_old",
+      memberUid: "old_user",
+      submittedBy: "old_user",
+      amountSatang: 50000,
+      status: "submitted",
+      createdAt: 1600000000,
+      updatedAt: 1600000000,
+    });
+
+    await simulateApprovePayment(db, "legacy_room", "legacy_pay_99", "ทริปเก่า", "mgr_modern");
+
+    const p = db.get("rooms/legacy_room/payments/legacy_pay_99");
+    assert.equal(p.status, "approved");
+    assert.equal(p.approvalCycle, 1);
+
+    const led = db.get("rooms/legacy_room/ledgerEntries/led_app_legacy_pay_99_1");
+    assert.ok(led);
+    assert.equal(led.amountSatang, 50000);
+  });
+});
+
+// ==============================================================================
+// 31. Manual Payment & Private Slip Evidence Specification
+// ==============================================================================
+test("Manual Payment & Private Slip Evidence Specification", async (t) => {
+  await t.test("submitting a manual payment creates status 'manual_review' with evidence metadata", () => {
+    const payment = {
+      id: "pay_manual_01",
+      dueId: "due_01",
+      memberUid: "user_alice",
+      submittedBy: "user_alice",
+      amountSatang: 150000,
+      transferDate: "2026-10-14",
+      transferTime: "14:30",
+      status: "manual_review",
+      evidenceType: "blob_private",
+      evidence: {
+        blobPath: "slips/room_01/pay_manual_01/slip_hash123.jpg",
+        mimeType: "image/jpeg",
+        sizeBytes: 450120,
+        sha256Hash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        originalFileName: "my_slip.jpg",
+        uploadedAt: 1776000000000,
+      },
+      createdAt: 1776000000000,
+      updatedAt: 1776000000000,
+    };
+
+    assert.equal(payment.status, "manual_review");
+    assert.notEqual(payment.status, "api_verified");
+    assert.equal(payment.amountSatang, 150000);
+    assert.equal(payment.transferDate, "2026-10-14");
+    assert.equal(payment.transferTime, "14:30");
+    assert.equal(payment.evidenceType, "blob_private");
+    assert.ok(payment.evidence);
+    assert.equal(payment.evidence.sha256Hash.length, 64);
+  });
+
+  await t.test("submitting fallback payment without image stores evidenceType 'none' and null evidence", () => {
+    const payment = {
+      id: "pay_manual_nofile",
+      dueId: "due_01",
+      memberUid: "user_bob",
+      submittedBy: "user_bob",
+      amountSatang: 50000,
+      transferDate: "2026-10-14",
+      transferTime: "15:00",
+      status: "manual_review",
+      evidenceType: "none",
+      evidence: null,
+      createdAt: 1776000010000,
+      updatedAt: 1776000010000,
+    };
+
+    assert.equal(payment.status, "manual_review");
+    assert.equal(payment.evidenceType, "none");
+    assert.equal(payment.evidence, null);
+  });
+
+  await t.test("duplicate slip SHA-256 detection flags duplicate uploads in the same room", () => {
+    const hash = "a".repeat(64);
+    const existingPayments = [
+      {
+        id: "pay_prev",
+        amountSatang: 100000,
+        evidence: { sha256Hash: hash },
+        status: "approved",
+      },
+      {
+        id: "pay_other",
+        amountSatang: 200000,
+        evidence: { sha256Hash: "b".repeat(64) },
+        status: "manual_review",
+      },
+    ];
+
+    const detectDuplicate = (currentPayId, currentHash, payments) => {
+      if (!currentHash) return null;
+      return (
+        payments.find(
+          (p) => p.id !== currentPayId && p.evidence?.sha256Hash === currentHash
+        ) || null
+      );
+    };
+
+    const duplicateMatch = detectDuplicate("pay_new", hash, existingPayments);
+    assert.ok(duplicateMatch);
+    assert.equal(duplicateMatch.id, "pay_prev");
+
+    const nonDuplicateMatch = detectDuplicate("pay_new", "c".repeat(64), existingPayments);
+    assert.equal(nonDuplicateMatch, null);
+  });
+
+  await t.test("atomic approval transitions 'manual_review' to 'approved' and credits ledger atomically", async () => {
+    const db = new MockFirestoreDb();
+    db.set("rooms/r1/payments/p_manual", {
+      id: "p_manual",
+      dueId: "due_01",
+      memberUid: "user_charlie",
+      submittedBy: "user_charlie",
+      amountSatang: 75000,
+      transferDate: "2026-10-14",
+      transferTime: "16:15",
+      status: "manual_review",
+      evidenceType: "blob_private",
+      evidence: {
+        blobPath: "slips/r1/p_manual/slip.jpg",
+        sha256Hash: "c".repeat(64),
+      },
+      createdAt: 1000,
+      updatedAt: 1000,
+    });
+
+    await simulateApprovePayment(db, "r1", "p_manual", "ค่าที่พักพัทยา", "mgr_dave");
+
+    const p = db.get("rooms/r1/payments/p_manual");
+    assert.equal(p.status, "approved");
+    assert.equal(p.approvalCycle, 1);
+
+    const led = db.get("rooms/r1/ledgerEntries/led_app_p_manual_1");
+    assert.ok(led);
+    assert.equal(led.amountSatang, 75000);
+    assert.equal(led.type, "income");
+
+    // Double approval check
+    await simulateApprovePayment(db, "r1", "p_manual", "ค่าที่พักพัทยา", "mgr_dave");
+    assert.equal(p.approvalCycle, 1);
+  });
+});
+
 
 

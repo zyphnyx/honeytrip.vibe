@@ -8,9 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "test": "node --experimental-strip-types --test tests/places.test.mjs tests/activities.test.mjs tests/protection.test.mjs tests/finance.test.mjs tests/device-link.test.mjs",
-    "test:emulator": "firebase emulators:exec --only auth,firestore --project demo-honeytrip-link \"node --experimental-strip-types --test tests/device-link.rules.test.mjs tests/device-link.emulator.test.mjs\""
+    "test:emulator": "firebase emulators:exec --only auth,firestore --project demo-honeytrip-link \"node --experimental-strip-types --test tests/device-link.rules.test.mjs tests/device-link.emulator.test.mjs tests/finance.emulator.test.mjs\""
   },
   "dependencies": {
+    "@vercel/blob": "^2.8.2",
     "@zxing/library": "^0.21.3",
     "firebase": "^12.19.0",
     "firebase-admin": "^14.5.0",

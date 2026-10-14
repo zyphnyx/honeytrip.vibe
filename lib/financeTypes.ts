@@ -77,6 +77,20 @@ export interface SlipVerificationResult {
   bankDelayMins?: number | null;
 }
 
+export interface ManualSlipEvidence {
+  storageProvider: "vercel_blob";
+  blobPath: string; // e.g. slips/{roomId}/{paymentId}/{randomId}.jpg
+  contentType: string;
+  mimeType?: string;
+  sizeBytes: number;
+  sha256?: string;
+  sha256Hash?: string;
+  originalFileName?: string;
+  uploadedAt: number;
+}
+
+export type EvidenceType = "manual_slip" | "manual_no_image" | "legacy_slipok";
+
 export interface Payment {
   id: string;
   dueId: string;
@@ -84,12 +98,20 @@ export interface Payment {
   submittedBy: string;
   amountSatang: number;
   status: PaymentStatus;
+  // Historical fields (preserved for legacy records)
   qrData?: string | null;
   slipResult?: SlipVerificationResult | null;
+  // Manual payment submission fields
+  transferDate?: string | null; // YYYY-MM-DD
+  transferTime?: string | null; // HH:mm
+  evidence?: ManualSlipEvidence | null;
+  evidenceType?: EvidenceType;
   manualNote?: string | null;
   rejectedReason?: string | null;
   approvedBy?: string | null;
   approvedAt?: number | null;
+  approvalCycle?: number;
+  editSeq?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -105,6 +127,7 @@ export interface Expense {
   linkedActivityId: string | null;
   status: ExpenseStatus;
   notes: string;
+  paidSeq?: number;
   createdBy: string;
   createdAt: number;
   updatedAt: number;
