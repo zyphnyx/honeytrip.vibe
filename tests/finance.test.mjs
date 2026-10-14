@@ -573,6 +573,138 @@ test("Expense installments and status computation", async (t) => {
     assert.equal(summary.members.user_a.isSettled, true);
     assert.equal(summary.members.user_b.isSettled, true);
   });
+
+  await t.test("editing an approved payment downwards from 10,000 to 1,000 creates a reversal and calculates exact net income", () => {
+    // Member was billed 1,000 THB (100,000 satang)
+    const due = {
+      id: "due_test",
+      title: "test ระบบ",
+      description: "",
+      dueDate: "2026-10-31",
+      totalAmountSatang: 100000,
+      allocations: { user_tum: 100000 },
+      linkedActivityId: null,
+      status: "open",
+      createdBy: "u_mgr",
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
+
+    // Originally, 10,000 THB was recorded and approved
+    // After manual edit, payment is updated to 1,000 THB (100,000 satang)
+    const payment = {
+      id: "pay_1",
+      dueId: "due_test",
+      memberUid: "user_tum",
+      submittedBy: "user_tum",
+      amountSatang: 100000, // corrected to 1,000 THB
+      status: "approved",
+      createdAt: 1000,
+      updatedAt: 2000,
+    };
+
+    // Ledger contains:
+    // 1) Initial approved income: 1,000,000 satang (10,000 THB)
+    // 2) Compensating reversal entry: 900,000 satang (9,000 THB)
+    const ledgerEntries = [
+      {
+        id: "led_initial",
+        type: "income",
+        amountSatang: 1000000,
+        source: "payment",
+        referenceId: "pay_1",
+        description: "รับเงินค่าtest ระบบ จากสมาชิก",
+        memberUid: "user_tum",
+        createdBy: "u_mgr",
+        createdAt: 1500,
+      },
+      {
+        id: "led_reversal",
+        type: "reversal",
+        amountSatang: 900000,
+        source: "payment",
+        referenceId: "pay_1",
+        description: "ปรับปรุงลดยอดเงินโอน (test ระบบ) จาก ฿10,000 เป็น ฿1,000 (พิมพ์เลข 0 เกิน)",
+        memberUid: "user_tum",
+        createdBy: "u_mgr",
+        createdAt: 2000,
+      },
+    ];
+
+    const summary = computeFinanceSummary({
+      dues: [due],
+      payments: [payment],
+      expenses: [],
+      ledgerEntries,
+      memberUids: ["user_tum"],
+    });
+
+    // Net income should be 1,000 THB (100,000 satang)
+    assert.equal(summary.totalIncomingSatang, 100000);
+    assert.equal(summary.confirmedFundBalanceSatang, 100000);
+    assert.equal(summary.members.user_tum.paidSatang, 100000);
+    assert.equal(summary.members.user_tum.outstandingSatang, 0);
+    assert.equal(summary.members.user_tum.isSettled, true);
+  });
+
+  await t.test("revoking an approved payment creates a full reversal and restores member dues outstanding", () => {
+    const due = {
+      id: "due_test2",
+      title: "ทริปพัทยา",
+      description: "",
+      dueDate: "2026-10-31",
+      totalAmountSatang: 100000,
+      allocations: { user_tum: 100000 },
+      linkedActivityId: null,
+      status: "open",
+      createdBy: "u_mgr",
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
+
+    // Payment revoked back to rejected
+    const payment = {
+      id: "pay_2",
+      dueId: "due_test2",
+      memberUid: "user_tum",
+      submittedBy: "user_tum",
+      amountSatang: 100000,
+      status: "rejected",
+      rejectedReason: "ยกเลิกการอนุมัติเพื่อแก้ไขยอด",
+      createdAt: 1000,
+      updatedAt: 2000,
+    };
+
+    // Ledger has initial income (100,000 satang) and full reversal (100,000 satang)
+    const ledgerEntries = [
+      {
+        id: "led_income",
+        type: "income",
+        amountSatang: 100000,
+        createdAt: 1500,
+      },
+      {
+        id: "led_rev",
+        type: "reversal",
+        amountSatang: 100000,
+        createdAt: 2000,
+      },
+    ];
+
+    const summary = computeFinanceSummary({
+      dues: [due],
+      payments: [payment],
+      expenses: [],
+      ledgerEntries,
+      memberUids: ["user_tum"],
+    });
+
+    assert.equal(summary.totalIncomingSatang, 0);
+    assert.equal(summary.confirmedFundBalanceSatang, 0);
+    assert.equal(summary.members.user_tum.paidSatang, 0);
+    assert.equal(summary.members.user_tum.outstandingSatang, 100000);
+    assert.equal(summary.members.user_tum.isSettled, false);
+  });
 });
 
 

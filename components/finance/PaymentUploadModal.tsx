@@ -425,7 +425,18 @@ function PaymentUploadModalContent({
             {(isManualMode || decodeError) && (
               <div className="space-y-2">
                 <div>
-                  <label className="label">จำนวนเงินที่โอน (บาท)</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="label !mb-0">จำนวนเงินที่โอน (บาท)</label>
+                    {userAllocatedSatang > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setManualAmountBaht(String(satangToBaht(userAllocatedSatang)))}
+                        className="text-[11px] text-amber-700 hover:underline cursor-pointer font-medium"
+                      >
+                        ⚡ เติมตามยอดงวด ({formatSatang(userAllocatedSatang)})
+                      </button>
+                    )}
+                  </div>
                   <input
                     type="number"
                     step="0.01"
@@ -439,6 +450,15 @@ function PaymentUploadModalContent({
                     value={manualAmountBaht}
                     onChange={(e) => setManualAmountBaht(e.target.value)}
                   />
+                  {userAllocatedSatang > 0 &&
+                    Number(manualAmountBaht) >= satangToBaht(userAllocatedSatang) * 5 && (
+                      <div className="mt-1.5 p-2 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 flex items-center gap-1.5">
+                        <span>⚠️</span>
+                        <span>
+                          ยอดที่กรอก (฿{Number(manualAmountBaht).toLocaleString()}) สูงกว่ายอดงวด (฿{satangToBaht(userAllocatedSatang).toLocaleString()}) มาก โปรดตรวจสอบจำนวนเลข 0 อีกครั้ง
+                        </span>
+                      </div>
+                    )}
                 </div>
                 <div>
                   <label className="label">หมายเหตุเพิ่มเติม (ถ้ามี)</label>

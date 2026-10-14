@@ -2,8 +2,14 @@
 
 import { useState } from "react";
 import type { Due, Payment } from "@/lib/financeTypes";
-import { formatSatang } from "@/lib/financeTypes";
-import { approvePayment, rejectPayment, deletePayment } from "@/lib/finance";
+import { formatSatang, satangToBaht, bahtToSatang } from "@/lib/financeTypes";
+import {
+  approvePayment,
+  rejectPayment,
+  deletePayment,
+  updatePaymentAmount,
+  revokeApprovedPayment,
+} from "@/lib/finance";
 import { getBankShortName } from "@/lib/slipokAdapter";
 import type { Member } from "@/lib/types";
 
@@ -28,6 +34,11 @@ export default function ManagerReviewQueue({
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejectingPayment, setRejectingPayment] = useState<Payment | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [editAmountBaht, setEditAmountBaht] = useState<string>("");
+  const [editReason, setEditReason] = useState<string>("");
+  const [revokingPayment, setRevokingPayment] = useState<Payment | null>(null);
+  const [revokeReason, setRevokeReason] = useState<string>("");
   const [actionError, setActionError] = useState<string | null>(null);
 
   const getMemberName = (uid: string) => {
@@ -101,6 +112,66 @@ export default function ManagerReviewQueue({
     } catch (err: unknown) {
       console.error(err);
       setActionError(err instanceof Error ? err.message : "ลบรายการไม่สำเร็จ");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleOpenEditModal = (payment: Payment) => {
+    setEditingPayment(payment);
+    setEditAmountBaht(String(satangToBaht(payment.amountSatang)));
+    setEditReason("");
+    setActionError(null);
+  };
+
+  const handleConfirmEdit = async () => {
+    if (!editingPayment || !isManager) return;
+    const numBaht = parseFloat(editAmountBaht);
+    if (isNaN(numBaht) || numBaht <= 0) {
+      setActionError("กรุณาระบุจำนวนเงินที่ถูกต้อง (ต้องมากกว่า 0 บาท)");
+      return;
+    }
+    const newSatang = bahtToSatang(numBaht);
+    if (newSatang === editingPayment.amountSatang) {
+      setEditingPayment(null);
+      return;
+    }
+
+    setProcessingId(editingPayment.id);
+    setActionError(null);
+    try {
+      const due = getDue(editingPayment.dueId);
+      await updatePaymentAmount(
+        roomId,
+        editingPayment,
+        newSatang,
+        due?.title,
+        editReason.trim() || undefined
+      );
+      setEditingPayment(null);
+    } catch (err: unknown) {
+      console.error(err);
+      setActionError(err instanceof Error ? err.message : "แก้ไขยอดเงินไม่สำเร็จ");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleConfirmRevoke = async () => {
+    if (!revokingPayment || !isManager) return;
+    setProcessingId(revokingPayment.id);
+    setActionError(null);
+    try {
+      await revokeApprovedPayment(
+        roomId,
+        revokingPayment,
+        revokeReason.trim() || "ยกเลิกการอนุมัติเพื่อแก้ไขยอด"
+      );
+      setRevokingPayment(null);
+      setRevokeReason("");
+    } catch (err: unknown) {
+      console.error(err);
+      setActionError(err instanceof Error ? err.message : "ยกเลิกการอนุมัติไม่สำเร็จ");
     } finally {
       setProcessingId(null);
     }
@@ -328,9 +399,18 @@ export default function ManagerReviewQueue({
                   </p>
                 )}
 
-                {/* Manager Actions Bar */}
+                {/* Manager Actions Bar for Pending */}
                 {isPending && isManager && (
-                  <div className="mt-3 pt-3 border-t border-stone-100 flex items-center justify-end gap-2">
+                  <div className="mt-3 pt-3 border-t border-stone-100 flex flex-wrap items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditModal(p)}
+                      disabled={processingId === p.id}
+                      className="px-3 py-1.5 rounded-xl border border-stone-200 text-stone-700 bg-white hover:bg-stone-50 text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      title="แก้ไขยอดเงินก่อนอนุมัติ"
+                    >
+                      <span>✏️</span> แก้ไขยอด
+                    </button>
                     <button
                       type="button"
                       onClick={() => setRejectingPayment(p)}
@@ -352,9 +432,44 @@ export default function ManagerReviewQueue({
                   </div>
                 )}
 
+                {/* Manager Actions Bar for Approved Payment */}
+                {p.status === "approved" && isManager && (
+                  <div className="mt-3 pt-2.5 border-t border-emerald-100 flex flex-wrap items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRevokingPayment(p)}
+                      disabled={processingId === p.id}
+                      className="px-3 py-1.5 rounded-xl border border-rose-200 text-rose-700 bg-white hover:bg-rose-50 text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      title="ยกเลิกการอนุมัติและปรับสถานะเป็นปฏิเสธ"
+                    >
+                      <span>↩️</span> ยกเลิกการอนุมัติ
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditModal(p)}
+                      disabled={processingId === p.id}
+                      className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1 cursor-pointer active:scale-95 disabled:opacity-50"
+                      title="แก้ไขยอดเงินนี้ (เช่น พิมพ์เลข 0 เกิน)"
+                    >
+                      <span>✏️</span> แก้ไขยอดเงิน
+                    </button>
+                  </div>
+                )}
+
                 {/* Actions Bar for Rejected Payment */}
                 {p.status === "rejected" && (isManager || (currentUid && p.submittedBy === currentUid)) && (
-                  <div className="mt-3 pt-2.5 border-t border-rose-100/80 flex items-center justify-end">
+                  <div className="mt-3 pt-2.5 border-t border-rose-100/80 flex flex-wrap items-center justify-end gap-2">
+                    {isManager && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditModal(p)}
+                        disabled={processingId === p.id}
+                        className="px-3 py-1.5 rounded-xl border border-stone-200 text-stone-700 bg-white hover:bg-stone-50 text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                        title="แก้ไขยอดเงิน"
+                      >
+                        <span>✏️</span> แก้ไขยอด
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleDeletePayment(p)}
@@ -405,6 +520,166 @@ export default function ManagerReviewQueue({
                 className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold"
               >
                 ยืนยันปฏิเสธ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Payment Modal */}
+      {editingPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-white rounded-3xl p-5 shadow-2xl border border-amber-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-stone-100 pb-2.5">
+              <div className="flex items-center gap-2 text-amber-700 font-bold">
+                <span className="text-xl">✏️</span>
+                <h3 className="text-sm font-bold text-stone-900">แก้ไขยอดเงินแจ้งโอน (Manual Edit)</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingPayment(null)}
+                className="text-stone-400 hover:text-stone-600 text-sm p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-stone-50 rounded-2xl p-3 border border-stone-200/80 text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-stone-500">สมาชิก:</span>
+                <span className="font-bold text-stone-800">{getMemberName(editingPayment.memberUid)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-stone-500">งวดเรียกเก็บ:</span>
+                <span className="font-semibold text-stone-700">{getDue(editingPayment.dueId)?.title || "แจ้งโอนทั่วไป"}</span>
+              </div>
+              <div className="flex justify-between items-center pt-1 border-t border-stone-200/60">
+                <span className="text-stone-500">ยอดเดิมในระบบ:</span>
+                <span className="font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md">
+                  {formatSatang(editingPayment.amountSatang)}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-stone-700">ยอดเงินที่ถูกต้อง (บาท)</label>
+                  {(() => {
+                    const due = getDue(editingPayment.dueId);
+                    const allocSatang = due?.allocations?.[editingPayment.memberUid];
+                    if (allocSatang && allocSatang > 0 && allocSatang !== editingPayment.amountSatang) {
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => setEditAmountBaht(String(satangToBaht(allocSatang)))}
+                          className="text-[11px] text-amber-700 hover:underline cursor-pointer"
+                        >
+                          ตั้งตามยอดงวด ({formatSatang(allocSatang)})
+                        </button>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-stone-400 font-bold text-sm">฿</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={editAmountBaht}
+                    onChange={(e) => setEditAmountBaht(e.target.value)}
+                    placeholder="เช่น 1000"
+                    className="w-full pl-8 pr-3 py-2 rounded-xl border border-stone-200 text-sm font-bold text-stone-800 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1">
+                  เหตุผลการแก้ไข (ระบุเพื่อความโปร่งใส)
+                </label>
+                <input
+                  type="text"
+                  value={editReason}
+                  onChange={(e) => setEditReason(e.target.value)}
+                  placeholder="เช่น พิมพ์เลข 0 เกินมา 1 ตัว, ยอดจริง 1,000 บาท"
+                  maxLength={100}
+                  className="w-full px-3 py-2 rounded-xl border border-stone-200 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                />
+              </div>
+
+              {editingPayment.status === "approved" ? (
+                <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl text-[11px] text-amber-900 leading-relaxed">
+                  ℹ️ <b>รายการนี้อนุมัติเข้ากองกลางแล้ว:</b> ระบบจะบันทึกรายการปรับปรุงยอดในสมุดบัญชีกองกลาง (Ledger Adjustment) อัตโนมัติ ยอดกองกลางและยอดของสมาชิกจะอัปเดตให้ถูกต้องทันที
+                </div>
+              ) : (
+                <div className="p-2.5 bg-blue-50/80 border border-blue-200 rounded-xl text-[11px] text-blue-900 leading-relaxed">
+                  ℹ️ ระบบจะอัปเดตยอดของรายการนี้ทันที เพื่อให้ผู้ดูแลสามารถตรวจสอบและอนุมัติต่อไปได้
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">
+              <button
+                type="button"
+                onClick={() => setEditingPayment(null)}
+                className="px-3 py-2 rounded-xl text-stone-600 text-xs hover:bg-stone-100"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmEdit}
+                disabled={processingId === editingPayment.id || !editAmountBaht || parseFloat(editAmountBaht) <= 0}
+                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-xs transition-colors disabled:opacity-50"
+              >
+                {processingId === editingPayment.id ? "กำลังบันทึก..." : "บันทึกยอดเงินใหม่"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Revoke Payment Modal */}
+      {revokingPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl border border-rose-100 space-y-4">
+            <div className="flex items-center gap-2 text-rose-600 font-bold">
+              <span className="text-xl">↩️</span>
+              <h3 className="text-sm font-bold">ยืนยันยกเลิกการอนุมัติยอดโอน</h3>
+            </div>
+            <p className="text-xs text-stone-600">
+              สมาชิก <b>{getMemberName(revokingPayment.memberUid)}</b> • ยอด{" "}
+              <strong className="text-rose-600 font-bold">{formatSatang(revokingPayment.amountSatang)}</strong>
+            </p>
+            <input
+              type="text"
+              value={revokeReason}
+              onChange={(e) => setRevokeReason(e.target.value)}
+              placeholder="ระบุเหตุผล เช่น โอนยอดผิด, สลิปไม่ถูกต้อง"
+              className="w-full px-3 py-2 rounded-xl border border-stone-200 text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none"
+            />
+            <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-[11px] text-rose-800 leading-relaxed">
+              ⚠️ ระบบจะบันทึกรายการ Reversal ในสมุดบัญชีกองกลางเพื่อหักยอดนี้ออก และปรับสถานะเป็น &ldquo;ปฏิเสธแล้ว&rdquo;
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-1 border-t border-stone-100">
+              <button
+                type="button"
+                onClick={() => setRevokingPayment(null)}
+                className="px-3 py-1.5 rounded-xl text-stone-600 text-xs hover:bg-stone-100"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRevoke}
+                disabled={processingId === revokingPayment.id}
+                className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors disabled:opacity-50"
+              >
+                {processingId === revokingPayment.id ? "กำลังบันทึก..." : "ยืนยันยกเลิกการอนุมัติ"}
               </button>
             </div>
           </div>

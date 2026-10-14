@@ -8,13 +8,14 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { ensureWritableUser, getDb } from "./firebase";
-import type {
-  Due,
-  Expense,
-  FinanceSettings,
-  LedgerEntry,
-  Payment,
-  PaymentStatus,
+import {
+  formatSatang,
+  type Due,
+  type Expense,
+  type FinanceSettings,
+  type LedgerEntry,
+  type Payment,
+  type PaymentStatus,
 } from "./financeTypes";
 
 export function generateFinanceId(prefix = "fin"): string {
@@ -274,6 +275,120 @@ export async function approvePayment(
   };
 
   await setDoc(doc(db, "rooms", roomId, "ledgerEntries", entryId), entry);
+}
+
+/**
+ * Manually updates the amount of a payment.
+ * If the payment is already approved, it writes an adjustment entry in the
+ * append-only ledger (reversal if decreased, income if increased)
+ * to keep the accounting ledger 100% consistent and audit-proof.
+ */
+export async function updatePaymentAmount(
+  roomId: string,
+  payment: Payment,
+  newAmountSatang: number,
+  dueTitle?: string,
+  reason?: string
+): Promise<void> {
+  const user = await ensureWritableUser();
+  const db = getDb();
+  const now = Date.now();
+
+  if (newAmountSatang <= 0) {
+    throw new Error("จำนวนเงินต้องมากกว่า 0 บาท");
+  }
+
+  if (newAmountSatang === payment.amountSatang) {
+    return;
+  }
+
+  // If payment was already approved into the ledger, create compensating ledger adjustment
+  if (payment.status === "approved") {
+    const deltaSatang = newAmountSatang - payment.amountSatang;
+    const entryId = generateFinanceId("led");
+
+    if (deltaSatang < 0) {
+      // Amount decreased: append reversal entry
+      const entry: LedgerEntry = {
+        id: entryId,
+        type: "reversal",
+        amountSatang: Math.abs(deltaSatang),
+        source: "payment",
+        referenceId: payment.id,
+        description: `ปรับปรุงลดยอดเงินโอน${dueTitle ? ` (${dueTitle})` : ""} จาก ${formatSatang(payment.amountSatang)} เป็น ${formatSatang(newAmountSatang)}${reason ? `: ${reason.trim()}` : ""}`,
+        memberUid: payment.memberUid,
+        createdBy: user.uid,
+        createdAt: now,
+      };
+      await setDoc(doc(db, "rooms", roomId, "ledgerEntries", entryId), entry);
+    } else {
+      // Amount increased: append income entry
+      const entry: LedgerEntry = {
+        id: entryId,
+        type: "income",
+        amountSatang: deltaSatang,
+        source: "payment",
+        referenceId: payment.id,
+        description: `ปรับปรุงเพิ่มยอดเงินโอน${dueTitle ? ` (${dueTitle})` : ""} จาก ${formatSatang(payment.amountSatang)} เป็น ${formatSatang(newAmountSatang)}${reason ? `: ${reason.trim()}` : ""}`,
+        memberUid: payment.memberUid,
+        createdBy: user.uid,
+        createdAt: now,
+      };
+      await setDoc(doc(db, "rooms", roomId, "ledgerEntries", entryId), entry);
+    }
+  }
+
+  // Update payment document
+  const noteSuffix = reason
+    ? ` [แก้ไขยอดเป็น ${formatSatang(newAmountSatang)}: ${reason.trim()}]`
+    : ` [แก้ไขยอดเป็น ${formatSatang(newAmountSatang)}]`;
+  const updatedNote = payment.manualNote ? `${payment.manualNote}${noteSuffix}` : noteSuffix.trim();
+
+  await updateDoc(doc(db, "rooms", roomId, "payments", payment.id), {
+    amountSatang: newAmountSatang,
+    manualNote: updatedNote,
+    updatedAt: now,
+  });
+}
+
+/**
+ * Revokes an approved payment by appending a full reversal ledger entry
+ * and changing payment status back to 'rejected'.
+ */
+export async function revokeApprovedPayment(
+  roomId: string,
+  payment: Payment,
+  reason: string
+): Promise<void> {
+  const user = await ensureWritableUser();
+  const db = getDb();
+  const now = Date.now();
+
+  if (payment.status !== "approved") {
+    throw new Error("รายการนี้ยังไม่ได้รับการอนุมัติ");
+  }
+
+  // 1. Append reversal ledger entry
+  const entryId = generateFinanceId("led");
+  const entry: LedgerEntry = {
+    id: entryId,
+    type: "reversal",
+    amountSatang: payment.amountSatang,
+    source: "payment",
+    referenceId: payment.id,
+    description: `ยกเลิกการอนุมัติยอดโอน: ${reason.trim() || "แก้ไขข้อผิดพลาด"}`,
+    memberUid: payment.memberUid,
+    createdBy: user.uid,
+    createdAt: now,
+  };
+  await setDoc(doc(db, "rooms", roomId, "ledgerEntries", entryId), entry);
+
+  // 2. Update payment status to rejected
+  await updateDoc(doc(db, "rooms", roomId, "payments", payment.id), {
+    status: "rejected",
+    rejectedReason: reason.trim() || "ยกเลิกการอนุมัติเพื่อแก้ไขยอด",
+    updatedAt: now,
+  });
 }
 
 /**
