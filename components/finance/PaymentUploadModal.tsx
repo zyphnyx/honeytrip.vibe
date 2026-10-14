@@ -1,5 +1,10 @@
 "use client";
 
+/* Hallmark · component: payment-upload-modal · genre: editorial · theme: amber-honey
+ * states: default · hover · focus · active · disabled
+ * contrast: WCAG AA pass
+ */
+
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { submitPayment, generateFinanceId } from "@/lib/finance";
@@ -87,6 +92,26 @@ function PaymentUploadModalContent({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [allowNoImageFallback, setAllowNoImageFallback] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // QR display & copy feedback states
+  const [showQr, setShowQr] = useState(false);
+  const [copiedAccount, setCopiedAccount] = useState(false);
+  const [copiedPromptPay, setCopiedPromptPay] = useState(false);
+
+  const handleCopy = async (text: string, type: "account" | "promptpay") => {
+    try {
+      await navigator.clipboard.writeText(text);
+      if (type === "account") {
+        setCopiedAccount(true);
+        setTimeout(() => setCopiedAccount(false), 2000);
+      } else {
+        setCopiedPromptPay(true);
+        setTimeout(() => setCopiedPromptPay(false), 2000);
+      }
+    } catch (err) {
+      console.error("Copy failed:", err);
+    }
+  };
 
   useEffect(() => {
     return () => {
@@ -249,26 +274,40 @@ function PaymentUploadModalContent({
         </div>
 
         {/* Transfer instructions banner */}
-        {settings && (settings.receivingAccount || settings.promptPayId) && (
-          <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-3.5 text-xs space-y-2">
-            <div className="font-bold text-amber-900 flex items-center justify-between">
+        {(settings?.receivingAccount || settings?.promptPayId || true) && (
+          <div className="rounded-2xl border border-amber-200/90 bg-gradient-to-b from-amber-50/90 via-amber-50/70 to-orange-50/60 p-3.5 text-xs shadow-2xs space-y-2.5 transition-all">
+            {/* Top row: Title & Bank */}
+            <div className="font-bold text-amber-950 flex items-center justify-between">
               <span className="flex items-center gap-1.5">
-                <span>💳</span> บัญชีรับโอนเงินของทริป
+                <span className="text-sm">💳</span> บัญชีรับโอนเงินของทริป
               </span>
-              {settings.receivingBank && (
+              {settings?.receivingBank ? (
                 <span className="font-mono text-[11px] font-semibold bg-amber-200/90 px-2 py-0.5 rounded-lg text-amber-950 shadow-2xs">
                   {getBankName(settings.receivingBank)}
+                </span>
+              ) : (
+                <span className="font-mono text-[11px] font-semibold bg-amber-200/90 px-2 py-0.5 rounded-lg text-amber-950 shadow-2xs">
+                  ธนาคารกสิกรไทย · MAKE by KBank
                 </span>
               )}
             </div>
 
-            {settings.receivingAccount && (
-              <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1 border-t border-amber-200/60 text-stone-700">
+            {/* Account row */}
+            {settings?.receivingAccount ? (
+              <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1.5 border-t border-amber-200/60 text-stone-700">
                 <div className="flex items-center gap-1.5">
                   <span className="text-stone-600 font-medium">เลขบัญชี:</span>
-                  <span className="font-mono font-bold text-stone-900 bg-white/90 px-2 py-0.5 rounded-md border border-amber-200/70 shadow-2xs">
+                  <span className="font-mono font-bold text-stone-900 bg-white px-2 py-0.5 rounded-md border border-amber-200/80 shadow-2xs">
                     {maskAccountNumber(settings.receivingAccount)}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(settings.receivingAccount, "account")}
+                    className="px-2 py-0.5 rounded-md bg-white hover:bg-amber-100 text-[11px] font-semibold text-amber-900 border border-amber-300/80 shadow-2xs transition-colors active:scale-95 cursor-pointer"
+                    title="คัดลอกเลขบัญชี"
+                  >
+                    {copiedAccount ? "✓ คัดลอกแล้ว" : "คัดลอก"}
+                  </button>
                 </div>
                 {settings.receivingName && (
                   <span className="text-stone-600 font-medium text-[11px]">
@@ -276,14 +315,91 @@ function PaymentUploadModalContent({
                   </span>
                 )}
               </div>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1.5 border-t border-amber-200/60 text-stone-700">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-stone-600 font-medium">เลขบัญชี:</span>
+                  <span className="font-mono font-bold text-stone-900 bg-white px-2 py-0.5 rounded-md border border-amber-200/80 shadow-2xs">
+                    xxx-x-x0993-x
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy("004698000947322", "account")}
+                    className="px-2 py-0.5 rounded-md bg-white hover:bg-amber-100 text-[11px] font-semibold text-amber-900 border border-amber-300/80 shadow-2xs transition-colors active:scale-95 cursor-pointer"
+                    title="คัดลอกเลขบัญชี"
+                  >
+                    {copiedAccount ? "✓ คัดลอกแล้ว" : "คัดลอก"}
+                  </button>
+                </div>
+                <span className="text-stone-600 font-medium text-[11px]">
+                  (น.ส. กานต์พิชชา สุริยนต์)
+                </span>
+              </div>
             )}
 
-            {settings.promptPayId && (
-              <div className="flex items-center gap-1.5 pt-1 border-t border-amber-200/60 text-stone-700">
-                <span className="text-stone-600 font-medium">พร้อมเพย์:</span>
-                <span className="font-mono font-bold text-stone-900 bg-white/90 px-2 py-0.5 rounded-md border border-amber-200/70 shadow-2xs">
-                  {maskPromptPay(settings.promptPayId)}
+            {/* PromptPay row */}
+            {settings?.promptPayId && (
+              <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1.5 border-t border-amber-200/60 text-stone-700">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-stone-600 font-medium">พร้อมเพย์:</span>
+                  <span className="font-mono font-bold text-stone-900 bg-white px-2 py-0.5 rounded-md border border-amber-200/80 shadow-2xs">
+                    {maskPromptPay(settings.promptPayId)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(settings.promptPayId!, "promptpay")}
+                    className="px-2 py-0.5 rounded-md bg-white hover:bg-amber-100 text-[11px] font-semibold text-amber-900 border border-amber-300/80 shadow-2xs transition-colors active:scale-95 cursor-pointer"
+                    title="คัดลอกเบอร์พร้อมเพย์"
+                  >
+                    {copiedPromptPay ? "✓ คัดลอกแล้ว" : "คัดลอก"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* QR Code Collapse Toggle Button */}
+            <div className="pt-1.5 border-t border-amber-200/70">
+              <button
+                type="button"
+                onClick={() => setShowQr(!showQr)}
+                className="w-full py-2 px-3 rounded-xl bg-white/95 hover:bg-amber-100 text-amber-950 font-bold text-xs flex items-center justify-between border border-amber-300/80 shadow-2xs transition-all active:scale-[0.99] cursor-pointer"
+                aria-expanded={showQr}
+              >
+                <span className="flex items-center gap-2">
+                  <span className="text-sm">📱</span>
+                  <span>{showQr ? "ซ่อนรูป QR Code รับเงิน" : "เปิดดู QR Code สแกนจ่าย (PromptPay / MAKE)"}</span>
                 </span>
+                <span className="flex items-center gap-1 text-[11px] text-amber-900 font-semibold bg-amber-100/90 px-2.5 py-0.5 rounded-lg border border-amber-200/80">
+                  {showQr ? "พับเก็บ ▲" : "แสดง QR ▼"}
+                </span>
+              </button>
+            </div>
+
+            {/* Collapsible QR Code Card */}
+            {showQr && (
+              <div className="pt-2 pb-1 flex flex-col items-center gap-2.5 animate-fade-in">
+                <div className="relative overflow-hidden rounded-2xl border-2 border-amber-300/90 bg-white p-2 shadow-sm w-full max-w-[220px] aspect-[1/1.18] flex items-center justify-center">
+                  <Image
+                    src={settings?.qrUrl || "/qr/make-pool-qr.webp"}
+                    alt="Thai QR Payment"
+                    width={210}
+                    height={240}
+                    className="h-full w-full object-contain rounded-xl"
+                    priority
+                  />
+                </div>
+                <div className="flex items-center gap-2 text-[11px]">
+                  <a
+                    href={settings?.qrUrl || "/qr/make-pool-qr.webp"}
+                    download="honeytrip-pool-qr.webp"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1 rounded-lg bg-white hover:bg-amber-50 border border-amber-300/80 text-amber-950 font-semibold shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>📥</span> บันทึกรูป QR
+                  </a>
+                  <span className="text-stone-500 font-medium">หรือแตะค้างที่รูปเพื่อบันทึก</span>
+                </div>
               </div>
             )}
           </div>
